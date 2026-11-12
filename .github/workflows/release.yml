@@ -2,17 +2,21 @@
 # 1.1.0-beta1). Uses the BigWigs packager, which reads the TOC's Interface
 # (16001 = WoW Forever) and uploads to every site whose project id is in the
 # TOC and whose token is set as a repository secret:
-#   CurseForge  ## X-Curse-Project-ID  + secret CF_API_KEY
-#   Wago        ## X-Wago-ID           + secret WAGO_API_TOKEN
-#   WoWInterface ## X-WoWI-ID          + secret WOWI_API_TOKEN
+#   CurseForge   ## X-Curse-Project-ID  + secret CF_API_KEY
+#   Wago         ## X-Wago-ID           + secret WAGO_API_TOKEN
+#   WoWInterface ## X-WoWI-ID           + secret WOWI_API_TOKEN
 # A GitHub release with the zip is always created. Tags containing "alpha" or
 # "beta" are uploaded as alpha/beta files. See docs/RELEASING.md.
+#
+# "Run workflow" (manual) is a dry run: it packages exactly the same way but
+# uploads nothing and keeps the zip as a downloadable artifact.
 name: Release
 
 on:
   push:
     tags:
       - "*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -39,3 +43,12 @@ jobs:
 
       - name: Package and upload
         uses: BigWigsMods/packager@v2
+        with:
+          args: ${{ github.event_name == 'workflow_dispatch' && '-d' || '' }}
+
+      - name: Keep the zip (dry run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: Sotto-package
+          path: .release/*.zip
