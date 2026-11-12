@@ -94,6 +94,9 @@ local function send(self)
         histPos = nil
         drafts[conv.key] = nil
         self:SetText("")
+        -- Keep chatting in a city or an inn; anywhere else hand the keys back
+        -- to the game (the reply key brings you straight back).
+        if InCombatLockdown() or not (IsResting and IsResting()) then self:ClearFocus() end
     else
         pulse()
     end

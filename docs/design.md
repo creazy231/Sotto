@@ -92,8 +92,7 @@ reskinning WIM further (keeps WIM's options and complexity) or forking WIM (huge
 - **Fonts:** EllesmereUI's font, no outline, 1 px shadow; names in "Expressway Bold" when
   the EUI font is Expressway (falls back to the regular font). Without EUI: the game font.
 - **Settings (9):** Open the window (Always / Out of combat / Never), Sound (Soft chime /
-  Game whisper / None), Hide whispers from the chat window, Use this window for `/w` and
-  replies, Accent (Class colour / EllesmereUI), Text size (11–16), Fade when idle,
+  Game whisper / None), Hide whispers from the chat window, Use Sotto for replies, Accent (Class colour / EllesmereUI), Text size (11–16), Fade when idle,
   Remember conversations (Until logout / 7 / 30 / 90 days), Minimap button.
 - **Timestamps** are not a setting: the time sits next to each name.
 - **No auto-focus** on incoming whispers; focus only when the player asked (reply key,
@@ -101,16 +100,19 @@ reskinning WIM further (keeps WIM's options and complexity) or forking WIM (huge
 - **Lockdown sending:** the box says "Paused for the fight · your draft waits here" and keeps
   the draft (the mockup's "Enter hands it to your chat" was dropped: putting text into
   Blizzard's chat box from addon code in combat risks taint).
-- **Reply key:** Sotto keeps its own last-whisper target; a post-hook on
-  `ChatFrameUtil.ReplyTell`/`ReplyTell2` redirects R to it (Blizzard's own target goes stale
-  because hidden whispers never reach `SetLastTellTarget`). Sotto never writes Blizzard's
-  last-tell list.
-- **Interception:** post-hook each chat edit box's `UpdateHeader` (installed through
-  `ChatFrameUtil.ActivateChat` and at login) plus `ReplyTell`/`ReplyTell2`; act one frame
-  later, only out of combat, out of lockdown and with readable values; then reset the box
-  to SAY and close it with its own escape handler (WIM's proven sequence; secure slash
-  commands run before `ParseText` reads the chat type, so they are not affected). Text
-  already typed after `/w Name` is carried over.
+- **Reply keys (revised after the final review):** Sotto never writes to Blizzard's chat
+  edit box or its last-tell list. Closing or refocusing that box from addon code leaves
+  `ACTIVE_CHAT_EDIT_BOX` tainted, after which Blizzard's chat code runs tainted and errors on
+  the secret names of Battle.net whispers and chat lockdown. Instead, while "Use Sotto for
+  replies" is on, the player's own REPLY/REPLY2 keys are override-bound to Sotto's
+  bindings (set out of combat, outside instances). `/w` and "Whisper" in menus stay with
+  Blizzard's box; the sent whisper opens its conversation in Sotto. A typed `/r` that would
+  answer a stale target prints a notice (read-only post-hook on `ProcessChatType`).
+- **New conversation ("+"):** Sotto's own name field over the header ("Whisper to"); the
+  spelling comes from a known conversation, the friends list or the guild, else each word
+  is capitalised. Blizzard's chat box is never opened from Sotto.
+- **Keyboard after sending:** kept in rested areas out of combat, released elsewhere (the
+  reply key brings it back).
 - **Recovery after lockdown:** queue `{event, lineID, time}` only while
   `C_ChatInfo.InChatMessagingLockdown()` is true; when the chat restriction ends, rebuild
   text, sender and GUID with `C_ChatInfo.GetChatLineText/SenderName/SenderGUID(lineID)`.

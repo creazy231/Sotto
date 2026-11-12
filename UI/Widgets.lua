@@ -398,7 +398,9 @@ local function buildMenu()
 end
 
 -- items: { { text, func, checked, disabled, color } ... }
-function W.Menu(anchor, items, width)
+-- align "RIGHT" opens the menu leftwards from the anchor's right edge (for
+-- anchors near the right edge of a window).
+function W.Menu(anchor, items, width, align)
     if not menu then buildMenu() end
     if menu:IsShown() and menu.anchor == anchor then W.CloseMenu(); return menu end
     menu.anchor = anchor
@@ -418,7 +420,11 @@ function W.Menu(anchor, items, width)
     for i = #items + 1, #menu.rows do menu.rows[i]:Hide() end
     menu:SetSize(max(width or 0, anchor:GetWidth(), ceil(widest) + 40), #items * 22 + 8)
     menu:ClearAllPoints()
-    menu:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
+    if align == "RIGHT" then
+        menu:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -2)
+    else
+        menu:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
+    end
     menu:Show()
     return menu
 end
@@ -463,7 +469,7 @@ function W.Dropdown(parent, choices, get, set)
                 self:Refresh()
             end }
         end
-        W.Menu(self, items)
+        W.Menu(self, items, nil, "RIGHT")
     end)
     b:SetScript("OnEnter", function(self) W.SetIconColor(self.chev, "text") end)
     b:SetScript("OnLeave", function(self) W.SetIconColor(self.chev, "muted") end)

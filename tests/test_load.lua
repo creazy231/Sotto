@@ -3,7 +3,7 @@ local T = T
 local ALLOWED = {
     SottoDB = true, SLASH_SOTTO1 = true, SLASH_SOTTO2 = true,
     BINDING_HEADER_SOTTO = true, BINDING_NAME_SOTTO_TOGGLE = true, BINDING_NAME_SOTTO_REPLY = true,
-    BINDING_NAME_SOTTO_NEXT = true,
+    BINDING_NAME_SOTTO_NEXT = true, BINDING_NAME_SOTTO_REPLY_SENT = true, Sotto_BindingReplySent = true,
     Sotto_OnAddonCompartmentClick = true, Sotto_OnAddonCompartmentEnter = true, Sotto_OnAddonCompartmentLeave = true,
     Sotto_BindingToggle = true, Sotto_BindingReply = true, Sotto_BindingNext = true,
 }

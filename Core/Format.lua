@@ -67,6 +67,12 @@ local function utf8Cut(s, n)
     return cut
 end
 
+-- text cut to at most n bytes on a character boundary, with "…" when cut.
+function F.Truncate(text, n)
+    if type(text) ~= "string" or #text <= n then return text end
+    return text:sub(1, utf8Cut(text, n)) .. "…"
+end
+
 -- Cuts one over-long word; full pieces go to out, the rest is returned.
 local function hardSplit(word, limit, out)
     local cur = ""

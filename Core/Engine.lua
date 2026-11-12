@@ -114,19 +114,32 @@ end
 -------------------------------------------------------------------------------
 --  Filter (runs inside Blizzard's chat frames, before our handlers)
 -------------------------------------------------------------------------------
+-- An outgoing whisper sent from the chat box opens its conversation in Sotto
+-- (out of combat, with "Use Sotto for replies" on); otherwise it stays in chat.
+function E.OpensOnOutgoing()
+    return ns.Get("intercept") and not InCombatLockdown()
+end
+
+local function uiShown()
+    return ns.UI ~= nil and ns.UI.IsShown ~= nil and ns.UI.IsShown()
+end
+
 function E.Filter(frame, event, ...)
-    if not ns.DB or not ns.Get("hideInChat") then return false end
+    -- Never hide anything Sotto could not show (no window: a load error).
+    if not ns.DB or not ns.Get("hideInChat") or not (ns.UI and ns.UI.win) then return false end
     if ns.IsSecret(...) then return false end
     if event == "CHAT_MSG_SYSTEM" then
         local _, kind = systemMatch((...))
-        return kind == "notfound" or kind == "ignored"
+        return (kind == "notfound" or kind == "ignored") and uiShown()
     end
     local text, who, _, _, _, flags, _, _, _, _, _, _, bnID, _, _, letterbox = ...
     if letterbox then return false end
     if event == "CHAT_MSG_AFK" or event == "CHAT_MSG_DND" then
-        return ns.Store.Get(ns.Names.Key(who)) ~= nil
+        return uiShown() and ns.Store.Get(ns.Names.Key(who)) ~= nil
     end
     if type(text) ~= "string" then return false end
+    local outgoing = event == "CHAT_MSG_WHISPER_INFORM" or event == "CHAT_MSG_BN_WHISPER_INFORM"
+    if outgoing and not (uiShown() or E.OpensOnOutgoing()) then return false end
     if event == "CHAT_MSG_BN_WHISPER" or event == "CHAT_MSG_BN_WHISPER_INFORM" then
         return type(bnID) == "number" and bnID > 0
     end
@@ -191,7 +204,10 @@ local function handle(event, t, recovered, ...)
         conv, isNew = bnConversation(bnID, who)
     else
         conv, isNew = ns.Store.Ensure("w", who)
-        if conv then ns.Contacts.Learn(conv, guid) end
+        if conv then
+            conv.name = ns.Names.Display(who) -- the server's spelling wins
+            ns.Contacts.Learn(conv, guid)
+        end
     end
     if not conv then return end
     conv.online = true
@@ -200,7 +216,7 @@ local function handle(event, t, recovered, ...)
         ns.Store.Add(conv, "o", text, t)
         ns.Store.MarkRead(conv)
         lastOutKey = conv.key
-        ns.Fire("OUTGOING", conv)
+        ns.Fire("OUTGOING", conv, not recovered and E.OpensOnOutgoing())
     else
         local msg = ns.Store.Add(conv, "i", text, t)
         lastInKey = conv.key

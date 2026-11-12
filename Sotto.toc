@@ -2,7 +2,7 @@
 ## Title: Sotto
 ## Notes: Whispers in a calm messenger window, drawn in the EllesmereUI look.
 ## Author: creazy231
-## Version: 1.0.0
+## Version: @project-version@
 ## Category: Chat
 ## X-Category: Chat
 ## OptionalDeps: EllesmereUI

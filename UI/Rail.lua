@@ -22,11 +22,11 @@ local list, offset = nil, 0
 local function preview(conv)
     local m = conv.msgs[#conv.msgs]
     if not m then return nil end
-    local text = ns.Format.Plain(m.m or "")
-    if #text > 64 then text = text:sub(1, 61):gsub("[\128-\191]*$", "") .. "…" end
+    local text = ns.Format.Truncate(ns.Format.Plain(m.m or ""), 64)
     local who = m.d == "o" and L["You"] or (m.d == "s" and "" or ns.Names.Short(ns.Contacts.Name(conv)))
     return (who ~= "" and (who .. ": ") or "") .. text
 end
+R.Preview = preview
 
 local function showTip(b)
     local conv = b.conv
@@ -201,10 +201,7 @@ function R.Build(rail)
     R.gear.restColor = "muted"
     W.SetIconColor(R.gear.icon, "muted")
 
-    R.plus = W.IconButton(rail, "plus", L["New conversation"], function()
-        local open = (ChatFrameUtil and ChatFrameUtil.OpenChat) or ChatFrame_OpenChat
-        if open then open(SLASH_WHISPER1 and (SLASH_WHISPER1 .. " ") or "/w ") end
-    end, nil, 15)
+    R.plus = W.IconButton(rail, "plus", L["New conversation"], function() ns.UI.NewConversation() end, nil, 15)
     R.plus:SetSize(30, 26)
     R.plus:SetPoint("BOTTOM", R.gear, "TOP", 0, 2)
     R.plus.restColor = "muted"

@@ -1,136 +1,107 @@
 -------------------------------------------------------------------------------
---  Sotto: whispers the player starts (/w Name, the reply keys, "Whisper" in
---  menus, Battle.net tells) open the conversation in Sotto.
+--  Sotto: the reply keys. Sotto never writes to Blizzard's chat edit box or
+--  its last-tell list: on this client a box closed or refocused from addon
+--  code leaves ACTIVE_CHAT_EDIT_BOX tainted, and Blizzard's chat code then
+--  errors on the secret names of Battle.net whispers and chat lockdown.
 --
---  Post-hooks only (hooksecurefunc): each chat edit box's UpdateHeader
---  (hooked when the box is first activated and at login) and
---  ChatFrameUtil.ReplyTell / ReplyTell2. Nothing happens inside Blizzard's
---  call: the hooks note what they saw and Sotto acts one frame later, after
---  ReplyTell/SendTell/OpenChat have finished. Then, only out of combat, out of
---  chat lockdown and with readable values, the box is set back to SAY and
---  closed with its own escape handler (secure slash commands run in ParseText
---  before the chat type is read, so they are unaffected).
+--  Instead, while "Use Sotto for replies" is on, the player's own keys for
+--  REPLY and REPLY2 are bound to Sotto's bindings (override bindings, set out
+--  of combat). Inside instances they stay with Blizzard: there whispers are
+--  secret, only Blizzard's chat can show and answer them.
 --
---  Reply targets: a whisper Sotto hid never reaches Blizzard's
---  SetLastTellTarget, so Blizzard's reply target goes stale. A reply key
---  therefore always opens Sotto's own last incoming (ReplyTell) or outgoing
---  (ReplyTell2) conversation. Sotto never writes Blizzard's last-tell list.
+--  /w and "Whisper" in menus stay with Blizzard's chat box; the whisper then
+--  opens its conversation in Sotto (Engine: OUTGOING). A typed /r would use
+--  Blizzard's reply target, which goes stale because Sotto hides whispers
+--  from the chat window; a read-only post-hook prints a notice in that case.
 -------------------------------------------------------------------------------
 local _, ns = ...
 local I = {}
 ns.Intercept = I
 
-local hooked = setmetatable({}, { __mode = "k" })
-local pending
-local scheduled = false
+local L = ns.L
+local owner = CreateFrame("Frame")
+local applied = {}
+local MAP = { REPLY = "SOTTO_REPLY", REPLY2 = "SOTTO_REPLY_SENT" }
 
-local function enabled()
-    return ns.DB ~= nil and ns.Get("intercept") and not InCombatLockdown() and not ns.InLockdown()
-end
-
-local function isWhisper(chatType)
-    return chatType == "WHISPER" or chatType == "BN_WHISPER"
-end
-
-local function resolve(chatType, target)
-    if chatType == "WHISPER" then return ns.Store.Ensure("w", target) end
-    local bnID = BNet_GetBNetIDAccount and BNet_GetBNetIDAccount(target)
-    if ns.IsSecret(bnID) or type(bnID) ~= "number" then return nil end
-    local tag
-    local info = C_BattleNet and C_BattleNet.GetAccountInfoByID and C_BattleNet.GetAccountInfoByID(bnID)
-    if type(info) == "table" and not ns.IsSecret(info.battleTag) then tag = info.battleTag end
-    return ns.Store.Ensure("bn", target, { tag = tag, bnID = bnID })
-end
-
-local function closeBox(box)
-    local chatType = box:GetAttribute("chatType")
-    if not ns.IsSecret(chatType) and isWhisper(chatType) then
-        box:SetAttribute("chatType", "SAY")
-        box:SetAttribute("tellTarget", nil)
+local function wanted()
+    local out = {}
+    if not ns.DB or not ns.Get("intercept") then return out end
+    if IsInInstance and IsInInstance() then return out end
+    for action, command in pairs(MAP) do
+        for _, key in ipairs({ GetBindingKey(action) }) do
+            if type(key) == "string" and key ~= "" then out[key] = command end
+        end
     end
-    local sticky = box:GetAttribute("stickyType")
-    if not ns.IsSecret(sticky) and isWhisper(sticky) then box:SetAttribute("stickyType", "SAY") end
-    local escape = (ChatFrameEditBoxMixin and ChatFrameEditBoxMixin.OnEscapePressed) or ChatEdit_OnEscapePressed
-    if not (escape and pcall(escape, box)) then
-        box:SetText("")
-        box:Hide()
+    return out
+end
+
+local function same(a, b)
+    for k, v in pairs(a) do if b[k] ~= v then return false end end
+    for k in pairs(b) do if a[k] == nil then return false end end
+    return true
+end
+
+-- Brings the override bindings in line with the setting, the instance and
+-- the player's key bindings. In combat it waits for PLAYER_REGEN_ENABLED.
+function I.Apply()
+    local want = wanted()
+    if same(want, applied) then return end
+    if InCombatLockdown() then return end
+    ClearOverrideBindings(owner)
+    for key, command in pairs(want) do SetOverrideBinding(owner, false, key, command) end
+    applied = want
+end
+
+-------------------------------------------------------------------------------
+--  Typed /r: tell the player when it would answer someone else
+-------------------------------------------------------------------------------
+local lastNotice = -math.huge
+
+local function samePerson(conv, target)
+    if conv.kind == "bn" then
+        local id = BNet_GetBNetIDAccount and BNet_GetBNetIDAccount(target)
+        return not ns.IsSecret(id) and id ~= nil and id == conv.bnID
     end
+    return ns.Names.Key(target) == conv.key
 end
 
-local function flush()
-    scheduled = false
-    local p = pending
-    pending = nil
-    if not p or not enabled() or not (ns.UI and ns.UI.Open) then return end
-
-    local box = p.box
-    if not box and ChatFrameUtil and ChatFrameUtil.GetActiveWindow then box = ChatFrameUtil.GetActiveWindow() end
-    local chatType, target, boxWhisper
-    if box and box:IsShown() then
-        chatType, target = box:GetAttribute("chatType"), box:GetAttribute("tellTarget")
-        -- A secret target (Battle.net in some 12.x states) stays with Blizzard.
-        if ns.IsSecret(chatType, target) then return end
-        boxWhisper = isWhisper(chatType) and type(target) == "string" and target ~= ""
+local function onProcessChatType(_, _, index)
+    if index ~= "REPLY" or not ns.DB then return end
+    if InCombatLockdown() or ns.InLockdown() then return end
+    local now = GetTime()
+    if now - lastNotice < 1 then return end
+    local mine = ns.Engine.LastIncoming()
+    if not mine then return end
+    local target = ChatFrameUtil and ChatFrameUtil.GetLastTellTarget and ChatFrameUtil.GetLastTellTarget()
+    if ns.IsSecret(target) then return end
+    if type(target) == "string" and target ~= "" and samePerson(mine, target) then return end
+    lastNotice = now
+    local who = ns.Contacts.Name(mine)
+    if type(target) == "string" and target ~= "" then
+        ns.Print(string.format(L["/r answers %s, but your last whisper came from %s. Your reply key answers in Sotto."],
+            ns.Names.Display(target), who))
+    else
+        ns.Print(string.format(L["/r has no one to answer, your last whisper came from %s. Your reply key answers in Sotto."], who))
     end
-
-    local conv
-    if p.reply == "out" then conv = ns.Engine.LastOutgoing() end
-    if p.reply == "in" then conv = ns.Engine.LastIncoming() end
-    if not conv and boxWhisper then conv = resolve(chatType, target) end
-    if not conv then return end
-
-    local text
-    if boxWhisper then
-        text = box:GetText()
-        if ns.IsSecret(text) or type(text) ~= "string" or text == "" then text = nil end
-        closeBox(box)
-    end
-    ns.UI.Open(conv, { focus = true, text = text })
-end
-
-local function schedule()
-    if scheduled then return end
-    scheduled = true
-    C_Timer.After(0, flush)
-end
-
-local function onHeader(box)
-    if not enabled() then return end
-    local chatType = box:GetAttribute("chatType")
-    if ns.IsSecret(chatType) or not isWhisper(chatType) then return end
-    pending = pending or {}
-    pending.box = box
-    schedule()
-end
-
-local function onReply(which)
-    if not enabled() then return end
-    pending = pending or {}
-    pending.reply = which
-    schedule()
-end
-
-function I.HookEditBox(box)
-    if not box or hooked[box] or type(box.UpdateHeader) ~= "function" then return end
-    hooked[box] = true
-    hooksecurefunc(box, "UpdateHeader", onHeader)
 end
 
 function I.Init()
-    local CFU = ChatFrameUtil
-    if CFU and CFU.ActivateChat then
-        hooksecurefunc(CFU, "ActivateChat", function(box) I.HookEditBox(box) end)
-        if CFU.ReplyTell then hooksecurefunc(CFU, "ReplyTell", function() onReply("in") end) end
-        if CFU.ReplyTell2 then hooksecurefunc(CFU, "ReplyTell2", function() onReply("out") end) end
-    else
-        -- Older chat code without ChatFrameUtil.
-        if ChatEdit_UpdateHeader then hooksecurefunc("ChatEdit_UpdateHeader", onHeader) end
-        if ChatFrame_ReplyTell then hooksecurefunc("ChatFrame_ReplyTell", function() onReply("in") end) end
-        if ChatFrame_ReplyTell2 then hooksecurefunc("ChatFrame_ReplyTell2", function() onReply("out") end) end
-    end
     for i = 1, (NUM_CHAT_WINDOWS or 10) do
-        I.HookEditBox(_G["ChatFrame" .. i .. "EditBox"])
+        local box = _G["ChatFrame" .. i .. "EditBox"]
+        if box and type(box.ProcessChatType) == "function" then
+            hooksecurefunc(box, "ProcessChatType", onProcessChatType)
+        end
     end
+    I.Apply()
 end
 
+-------------------------------------------------------------------------------
+--  Wiring
+-------------------------------------------------------------------------------
 ns.On("PLAYER_LOGIN", function() I.Init() end)
+for _, ev in ipairs({ "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "UPDATE_BINDINGS", "PLAYER_REGEN_ENABLED" }) do
+    ns.On(ev, function() I.Apply() end)
+end
+ns.Listen("SETTING_CHANGED", function(key)
+    if key == "intercept" then I.Apply() end
+end)

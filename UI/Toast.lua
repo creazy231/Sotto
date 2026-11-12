@@ -161,6 +161,10 @@ function Ts.Dismiss(t)
     layout()
 end
 
+function Ts.HideAll()
+    for i = #Ts.active, 1, -1 do Ts.Dismiss(Ts.active[i]) end
+end
+
 function Ts.HideFor(conv)
     for i = #Ts.active, 1, -1 do
         if Ts.active[i].conv == conv then Ts.Dismiss(Ts.active[i]) end

@@ -82,6 +82,17 @@ elseif scenario == "settings" then
     W.cvars.whisperMode = "inline"
     S.MarkUnread(kaja, 2)
     ns.UI.ShowSettings()
+elseif scenario == "prompt" then
+    ns.UI.Open(tarin)
+    ns.UI.NewConversation()
+    ns.UI.prompt.edit:SetText("Kaja Storm")
+elseif scenario == "menu" then
+    ns.UI.Open(tarin)
+    ns.UI.MoreMenu(ns.UI.header.more)
+elseif scenario == "bn" then
+    add(alex, "o", "sure, after this dungeon", 2 * 86400 - 60)
+    add(alex, "i", "we need a druid for ZF, you in?", 90)
+    ns.UI.Open(alex)
 elseif scenario == "toast" then
     W.combat = true
     W.chat("CHAT_MSG_WHISPER", W.whisperArgs("lf healer for Razorfen Kraul? we have tank + 2 dps", "Kaja Stormhoof",
@@ -280,6 +291,8 @@ for z, it in ipairs(items) do
 end
 
 local win = W.rect(G.SottoWindow)
+local toast = ns.Toast.active[1] and W.rect(ns.Toast.active[1])
+local toastJS = toast and string.format("{x:%f,y:%f,w:%f,h:%f}", toast[1], SH - toast[2] - toast[4], toast[3], toast[4]) or "null"
 local doc = [[<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sotto render</title><style>
 @font-face{font-family:Expressway;src:url(fonts/expressway.ttf)}
 @font-face{font-family:ExpresswayBold;src:url(fonts/expressway-bold.ttf)}
@@ -287,7 +300,31 @@ html,body{margin:0;background:#0b0b0c}
 #stage{position:relative;width:1920px;height:1080px;overflow:hidden;background:url(backdrop.jpg) 0 0/1920px 1080px;
   -webkit-font-smoothing:antialiased;transform-origin:0 0}
 </style></head><body><div id="stage">]] .. table.concat(html, "\n") .. [[</div>
-<script>window.SOTTO_WIN={x:]] .. win[1] .. [[,y:]] .. (SH - win[2] - win[4]) .. [[,w:]] .. win[3] .. [[,h:]] .. win[4] .. [[};</script>
+<script>window.SOTTO_WIN={x:]] .. win[1] .. [[,y:]] .. (SH - win[2] - win[4]) .. [[,w:]] .. win[3] .. [[,h:]] .. win[4] .. [[};
+window.SOTTO_TOAST=]] .. toastJS .. [[;
+(function(){
+  var q = new URLSearchParams(location.search);
+  if (!q.has('shot')) return;
+  var W = parseInt(q.get('w') || '1920'), H = parseInt(q.get('h') || '1080'), s = parseFloat(q.get('scale') || '2');
+  var f = (q.get('focus') === 'toast' && window.SOTTO_TOAST) ? window.SOTTO_TOAST : window.SOTTO_WIN;
+  var cx = parseFloat(q.get('cx') || (W / 2)), cy = parseFloat(q.get('cy') || (H / 2));
+  var st = document.getElementById('stage');
+  st.style.background = 'none';
+  document.documentElement.style.cssText = 'width:' + W + 'px;height:' + H + 'px;overflow:hidden';
+  document.body.style.cssText = 'margin:0;width:' + W + 'px;height:' + H + 'px;overflow:hidden;background:#0b0b0c url(' + q.get('bg') + ') center/cover no-repeat';
+  st.style.transform = 'translate(' + (cx - (f.x + f.w / 2) * s) + 'px,' + (cy - (f.y + f.h / 2) * s) + 'px) scale(' + s + ')';
+  st.style.overflow = 'visible';
+  if (q.has('hero')) {
+    var d = document.createElement('div');
+    d.innerHTML = '<img src="icon.png" style="width:132px;height:132px;display:block;border-radius:26px;box-shadow:0 0 0 1px rgba(255,255,255,.08),0 18px 40px rgba(0,0,0,.55)">'
+      + '<div style="font-family:ExpresswayBold;font-size:104px;line-height:1;color:#f8f8f8;margin-top:28px;letter-spacing:.5px;text-shadow:0 2px 0 rgba(0,0,0,.5)">Sotto</div>'
+      + '<div style="font-family:Expressway;font-size:30px;line-height:1.3;color:#cacccf;margin-top:16px;max-width:620px;text-shadow:0 1px 0 rgba(0,0,0,.6)">Whispers in a calm messenger window,<br>drawn in the EllesmereUI look.</div>'
+      + '<div style="font-family:Expressway;font-size:21px;color:#ff7d0a;margin-top:22px;letter-spacing:2px">WOW FOREVER</div>';
+    d.style.cssText = 'position:absolute;left:120px;top:50%;transform:translateY(-50%);z-index:100000';
+    document.body.appendChild(d);
+  }
+})();
+</script>
 </body></html>]]
 local fh = io.open(out, "w")
 fh:write(doc)

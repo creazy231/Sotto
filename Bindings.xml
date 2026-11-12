@@ -5,6 +5,9 @@
 	<Binding name="SOTTO_REPLY" category="ADDONS">
 		Sotto_BindingReply()
 	</Binding>
+	<Binding name="SOTTO_REPLY_SENT" category="ADDONS">
+		Sotto_BindingReplySent()
+	</Binding>
 	<Binding name="SOTTO_NEXT" category="ADDONS">
 		Sotto_BindingNext()
 	</Binding>

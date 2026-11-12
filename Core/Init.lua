@@ -9,7 +9,9 @@ local ADDON, ns = ...
 ns.name = ADDON
 
 local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
-ns.version = (getMeta and getMeta(ADDON, "Version")) or "1.0.0"
+ns.version = (getMeta and getMeta(ADDON, "Version")) or "dev"
+-- The packager fills in the tag; a copy straight from the repository says so.
+if ns.version:find("@", 1, true) then ns.version = "dev" end
 
 -- English strings. A missing key shows the key itself.
 ns.L = setmetatable({}, { __index = function(_, k) return k end })

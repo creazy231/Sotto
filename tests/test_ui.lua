@@ -146,6 +146,7 @@ end)
 
 T.it("Enter in the compose box sends, keeps focus, and Up recalls", function()
     local G, W, ns, UI = load()
+    W.resting = true
     UI.Open(ns.Store.Ensure("w", "Tarin Ashgrove"), { focus = true })
     local box = ns.Compose.box
     box:SetText("hello there")
@@ -305,6 +306,18 @@ T.it("slash command toggles, opens settings and resets", function()
     T.eq(G.SottoDB.window.x, 22)
 end)
 
+T.it("the second reply binding opens the last person you whispered", function()
+    local G, W, ns, UI = load()
+    ns.Set("openOn", "never")
+    W.combat = true
+    W.chat("CHAT_MSG_WHISPER_INFORM", W.whisperArgs("hi", "Bbb"))
+    W.chat("CHAT_MSG_WHISPER", W.whisperArgs("a", "Aaa"))
+    W.combat = false
+    G.Sotto_BindingReplySent()
+    T.eq(UI.Active().key, "bbb")
+    T.eq(W.focus, ns.Compose.box)
+end)
+
 T.it("the reply binding opens the last whisper with focus", function()
     local G, W, ns, UI = load()
     ns.Set("openOn", "never")
@@ -313,6 +326,145 @@ T.it("the reply binding opens the last whisper with focus", function()
     T.ok(UI.IsShown())
     T.eq(UI.Active().key, "aaa")
     T.eq(W.focus, ns.Compose.box)
+end)
+
+T.it("the More menu stays inside the window", function()
+    local G, W, ns, UI = load()
+    whisper(W, "a", "Tarin Ashgrove")
+    UI.header.more:Click()
+    local menu = ns.W.CurrentMenu()
+    T.ok(menu:IsShown(), "menu open")
+    T.ok(menu:GetRight() <= UI.win:GetRight() + 0.01, "right edge inside the window")
+end)
+
+T.it("starting a closed conversation again reopens it", function()
+    local G, W, ns, UI = load()
+    local c = ns.Store.Ensure("w", "Aaa")
+    ns.Store.Add(c, "i", "x")
+    ns.Store.Close(c)
+    UI.Open(c)
+    T.ok(c.open, "open again")
+    local found = false
+    for _, b in ipairs(ns.Rail.badges) do if b.conv == c then found = true end end
+    T.ok(found, "badge in the rail")
+end)
+
+T.it("closing the active conversation releases the compose box", function()
+    local G, W, ns, UI = load()
+    local a, b = ns.Store.Ensure("w", "Aaa"), ns.Store.Ensure("w", "Bbb")
+    ns.Store.Add(a, "i", "x")
+    ns.Store.Add(b, "i", "y")
+    UI.Open(a, { focus = true })
+    ns.Store.Close(a)
+    T.no(W.focus, "keyboard released")
+    T.eq(UI.Active(), b)
+end)
+
+T.it("showing the window marks the active conversation read and clears toasts", function()
+    local G, W, ns, UI = load()
+    whisper(W, "a", "Aaa")
+    UI.Hide()
+    W.combat = true
+    whisper(W, "b", "Aaa")
+    T.eq(#ns.Toast.active, 1)
+    T.eq(ns.Store.Get("aaa").unread, 1)
+    UI.Toggle()
+    T.eq(ns.Store.Get("aaa").unread, 0)
+    T.eq(#ns.Toast.active, 0)
+end)
+
+T.it("Enter releases the keyboard in combat and outside rested areas", function()
+    local G, W, ns, UI = load()
+    UI.Open(ns.Store.Ensure("w", "Aaa"), { focus = true })
+    local box = ns.Compose.box
+    W.resting = false
+    box:SetText("one")
+    box:_fire("OnEnterPressed")
+    T.no(W.focus, "released in the open world")
+    W.resting = true
+    box:SetFocus()
+    box:SetText("two")
+    box:_fire("OnEnterPressed")
+    T.eq(W.focus, box, "kept in a city or inn")
+    W.combat = true
+    box:SetText("three")
+    box:_fire("OnEnterPressed")
+    T.no(W.focus, "released in combat")
+end)
+
+T.it("the minimap button leaves EllesmereUI's hiding alone", function()
+    local G, W, ns, UI = load()
+    ns.Set("openOn", "never")
+    G.SottoMinimapButton:Hide()
+    whisper(W, "a", "Aaa")
+    T.no(G.SottoMinimapButton:IsShown(), "still hidden")
+    T.eq(G.SottoMinimapButton.count:GetText(), "1", "count updated")
+end)
+
+T.it("contact refreshes are batched and skipped while the window is hidden", function()
+    local G, W, ns, UI = load()
+    local calls = 0
+    local orig = G.C_FriendList.GetFriendInfo
+    G.C_FriendList.GetFriendInfo = function(...) calls = calls + 1; return orig(...) end
+    for i = 1, 30 do ns.Store.Add(ns.Store.Ensure("w", "Name" .. i), "i", "x", G.time() - i) end
+    calls = 0
+    for _ = 1, 5 do W.fire("FRIENDLIST_UPDATE") end
+    W.advance(2)
+    T.eq(calls, 0, "nothing while hidden")
+    UI.Toggle()
+    calls = 0
+    for _ = 1, 5 do W.fire("FRIENDLIST_UPDATE") end
+    W.advance(2)
+    T.ok(calls > 0 and calls <= 10, "one batched pass over the visible conversations: " .. calls)
+end)
+
+T.it("tooltip previews never cut a character in half", function()
+    local G, W, ns, UI = load()
+    local c = ns.Store.Ensure("w", "Aaa")
+    for n = 55, 70 do
+        ns.Store.Add(c, "i", string.rep("a", n) .. "ääääääääää")
+        local p = ns.Rail.Preview(c)
+        T.no(p:find("[\192-\255]$") or p:find("[\192-\255][\1-\127]") or p:find("[\192-\255]…"), "broken UTF-8 at " .. n)
+    end
+end)
+
+T.it("+ starts a conversation in Sotto without Blizzard's chat box", function()
+    local G, W, ns, UI = load()
+    UI.Toggle()
+    ns.Rail.plus:Click()
+    local prompt = UI.prompt
+    T.ok(prompt and prompt:IsShown(), "name field shown")
+    T.eq(W.focus, prompt.edit, "focused")
+    prompt.edit:SetText("tarin ashgrove")
+    prompt.edit:_fire("OnEnterPressed")
+    T.no(prompt:IsShown(), "name field closed")
+    T.eq(UI.Active().key, "tarin ashgrove")
+    T.eq(W.focus, ns.Compose.box, "ready to type")
+    T.no(G.ChatFrame1EditBox:IsShown(), "Blizzard's chat box untouched")
+end)
+
+T.it("the name field takes the spelling of a friend and capitalises the rest", function()
+    local G, W, ns, UI = load({ setup = function(G, W)
+        W.friends = { { name = "Tarin Ashgrove", level = 34, className = "Warrior", connected = true } }
+    end })
+    UI.Toggle()
+    ns.Rail.plus:Click()
+    UI.prompt.edit:SetText("tarin ashgrove")
+    UI.prompt.edit:_fire("OnEnterPressed")
+    T.eq(UI.Active().name, "Tarin Ashgrove")
+    ns.Rail.plus:Click()
+    UI.prompt.edit:SetText("kaja stormhoof")
+    UI.prompt.edit:_fire("OnEnterPressed")
+    T.eq(UI.Active().name, "Kaja Stormhoof")
+end)
+
+T.it("Esc closes the name field", function()
+    local G, W, ns, UI = load()
+    UI.Toggle()
+    ns.Rail.plus:Click()
+    UI.prompt.edit:_fire("OnEscapePressed")
+    T.no(UI.prompt:IsShown())
+    T.no(W.focus)
 end)
 
 T.it("invite invites the contact", function()

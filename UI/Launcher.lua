@@ -84,15 +84,21 @@ function Ln.Update()
         b.pill:Hide()
         b.ring:Hide()
     end
-    b:SetShown(ns.Get("minimap") and true or false)
+end
+
+-- Shown or hidden only here (login, setting): EllesmereUI's minimap hides
+-- the buttons it collects and must not see them shown again on every whisper.
+function Ln.ApplyVisibility()
+    if ns.Get("minimap") then b:Show() else b:Hide() end
 end
 
 ns.Listen("UNREAD_CHANGED", Ln.Update)
 ns.Listen("CONV_UPDATED", Ln.Update)
-ns.Listen("SETTING_CHANGED", function(key) if key == "minimap" then Ln.Update() end end)
+ns.Listen("SETTING_CHANGED", function(key) if key == "minimap" then Ln.ApplyVisibility() end end)
 ns.On("PLAYER_LOGIN", function()
     place()
     Ln.Update()
+    Ln.ApplyVisibility()
 end)
 
 -------------------------------------------------------------------------------
@@ -132,11 +138,17 @@ BINDING_HEADER_SOTTO = "Sotto"
 BINDING_NAME_SOTTO_TOGGLE = L["Show or hide Sotto"]
 BINDING_NAME_SOTTO_REPLY = L["Reply to the last whisper"]
 BINDING_NAME_SOTTO_NEXT = L["Next unread conversation"]
+BINDING_NAME_SOTTO_REPLY_SENT = L["Whisper the last person you whispered"]
 
 function Sotto_BindingToggle() ns.UI.Toggle() end
 
 function Sotto_BindingReply()
     local conv = ns.Engine.LastIncoming()
+    if conv then ns.UI.Open(conv, { focus = true }) else ns.UI.Show() end
+end
+
+function Sotto_BindingReplySent()
+    local conv = ns.Engine.LastOutgoing()
     if conv then ns.UI.Open(conv, { focus = true }) else ns.UI.Show() end
 end
 

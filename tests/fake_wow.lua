@@ -655,12 +655,46 @@ function F.new(opts)
     ---------------------------------------------------------------------------
     W.player = { name = "Ayla Brightwind", realm = "Forever Realm One", class = "Druid", classFile = "DRUID",
         race = "Tauren", faction = "Horde", guid = "Player-1-00000001" }
-    G.UnitName = function(u)
-        if u == "player" then return W.player.name end
-        local x = W.units and W.units[u]
-        if x then return x.name, x.realm end
+    -- Forever (regional unique names): UnitName returns first name and surname.
+    W.run = true
+    G.RegionalUniqueNamesEnabled = function() return W.run end
+    G.Constants = { CharacterNameSeparatorConsts = { CHARACTERNAME_SURNAME_SEPARATOR = " " },
+        ChatFrameConstants = { MaxChatChannels = 20 } }
+    local function nameParts(full)
+        local first, last = full:match("^(%S+)%s+(.+)$")
+        if first and W.run then return first, last end
+        return full, nil
     end
+    G.UnitName = function(u)
+        if u == "player" then return nameParts(W.player.name) end
+        local x = W.units and W.units[u]
+        if x then
+            if W.run then return nameParts(x.name) end
+            return x.name, x.realm
+        end
+    end
+    G.UnitNameUnmodified = G.UnitName
     G.UnitFullName = G.UnitName
+    G.NameUtil = {
+        GetUnmodifiedUnitFullName = function(u)
+            local n, s = G.UnitNameUnmodified(u)
+            if s then return n .. " " .. s end
+            return n
+        end,
+    }
+    G.IsResting = function() return W.resting == true end
+    -- Key bindings and override bindings.
+    W.bindings = { REPLY = { "R" }, REPLY2 = { "SHIFT-R" } }
+    W.overrides = {}
+    G.GetBindingKey = function(action) return unpack(W.bindings[action] or {}) end
+    G.SetOverrideBinding = function(owner, priority, key, command)
+        if W.combat then error("SetOverrideBinding: blocked in combat", 2) end
+        W.overrides[key] = command
+    end
+    G.ClearOverrideBindings = function(owner)
+        if W.combat then error("ClearOverrideBindings: blocked in combat", 2) end
+        W.overrides = {}
+    end
     G.UnitGUID = function(u) if u == "player" then return W.player.guid end local x = W.units and W.units[u]; return x and x.guid end
     G.UnitClass = function(u)
         if u == "player" then return W.player.class, W.player.classFile end
@@ -700,7 +734,13 @@ function F.new(opts)
     G.ReloadUI = function() W.reloads = W.reloads + 1 end
     G.C_AddOns = {
         IsAddOnLoaded = function(n) return W.loadedAddons[n] == true end,
-        GetAddOnMetadata = function(n, k) if n == "Sotto" and k == "Version" then return "1.0.0" end end,
+        GetAddOnMetadata = function(n, k)
+            if n ~= "Sotto" then return nil end
+            for line in io.lines("Sotto.toc") do
+                local key, value = line:match("^## ([%w%-]+):%s*(.-)%s*$")
+                if key == k then return value end
+            end
+        end,
         DisableAddOn = function(n, who) W.disabledAddons[n] = who or true end,
         GetAddOnEnableState = function(n) return W.loadedAddons[n] and 2 or 0 end,
     }
@@ -835,6 +875,19 @@ function F.new(opts)
     function eb:GetTellTarget() return self:GetAttribute("tellTarget") end
     function eb:SetTellTarget(t) self:SetAttribute("tellTarget", t) end
     function eb:UpdateHeader() self._headers = (self._headers or 0) + 1 end
+    function eb:ProcessChatType(msg, index, send)
+        if index == "REPLY" then
+            local t, ty = G.ChatFrameUtil.GetLastTellTarget()
+            if t then
+                self:SetChatType(ty)
+                self:SetTellTarget(t)
+                self:SetText(msg)
+                self:UpdateHeader()
+            end
+            return true
+        end
+        return false
+    end
     function eb:ClearChat()
         self:SetChatType(self:GetStickyType())
         self:SetText("")

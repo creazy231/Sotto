@@ -20,4 +20,14 @@ Polestar look. Not a git repository. Author for anything public: creazy231.
   - EllesmereUI only through `EllesmereUI.RegisterSkin` getters (no EUI internals, no `EllesmereUIDB`).
 - `docs/` holds the user's screenshot and EllesmereUI's licensed font (mockup assets): never
   ship `docs/` or `tests/` in a public release.
-- After a code change: add a `CHANGELOG.md` entry and bump `## Version` in `Sotto.toc`.
+- Visual check without the game: `luajit tools/render_ui.lua <dir>/chat.html chat` draws what the
+  addon built in the fake client as HTML (scenarios: chat, new, lock, empty, settings, toast,
+  menu, bn). The page expects next to it: `media/` (`python3 -I tools/tga2png.py <dir>`),
+  `fonts/expressway.ttf`, `fonts/expressway-bold.ttf`, `class/class-<class>.png` and
+  `backdrop.jpg` (from `docs/mockup/assets`). Serve the dir over http (fonts need it);
+  `?shot=1&scale=2&bg=<image>` frames it for listing screenshots (`docs/listing/`).
+- Git: repo-local identity creazy231 / 13473174+creazy231@users.noreply.github.com, remote
+  github.com/creazy231/Sotto (private). Releases: tag → `.github/workflows/release.yml`
+  (BigWigs packager); see `docs/RELEASING.md`.
+- After a code change: add a `CHANGELOG.md` entry under the next version and tag that version
+  to release (`## Version: @project-version@` is filled in by the packager).

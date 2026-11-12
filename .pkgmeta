@@ -1,0 +1,14 @@
+package-as: Sotto
+
+enable-nolib-creation: no
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+ignore:
+  - docs
+  - tests
+  - tools
+  - CLAUDE.md
+  - README.md

@@ -52,6 +52,47 @@ T.it("whisper from 'ayla brightwind' joins 'Ayla Brightwind'", function()
     T.eq(#S.List(), 1)
 end)
 
+T.it("the sender's spelling becomes the conversation name", function()
+    local G, W, ns, E, S = load()
+    S.Ensure("w", "ayla brightwind")
+    whisper(W, "hi", "Ayla Brightwind")
+    T.eq(S.Get("ayla brightwind").name, "Ayla Brightwind")
+end)
+
+T.it("an outgoing whisper stays in chat while Sotto cannot show it", function()
+    local G, W, ns, E, S = load()
+    W.combat = true
+    W.chat("CHAT_MSG_WHISPER_INFORM", W.whisperArgs("on my way", "Tarin Ashgrove"))
+    T.ok(shownInChat(W, "on my way"), "visible in chat")
+    T.no(ns.UI.IsShown())
+    T.eq(#S.Get("tarin ashgrove").msgs, 1, "and recorded in Sotto")
+end)
+
+T.it("an outgoing whisper out of combat opens its conversation in Sotto", function()
+    local G, W, ns, E, S = load()
+    W.chat("CHAT_MSG_WHISPER_INFORM", W.whisperArgs("on my way", "Tarin Ashgrove"))
+    T.no(shownInChat(W, "on my way"), "moved to Sotto")
+    T.ok(ns.UI.IsShown(), "window open")
+    T.eq(ns.UI.Active(), S.Get("tarin ashgrove"))
+    T.no(W.focus, "no focus taken")
+end)
+
+T.it("AFK replies stay in chat while Sotto is hidden", function()
+    local G, W, ns, E, S = load()
+    W.combat = true
+    W.chat("CHAT_MSG_WHISPER_INFORM", W.whisperArgs("you there?", "Tarin Ashgrove"))
+    W.chat("CHAT_MSG_AFK", W.whisperArgs("brb food", "Tarin Ashgrove"))
+    T.ok(shownInChat(W, "brb food"))
+end)
+
+T.it("nothing is hidden from chat until Sotto's window exists", function()
+    local files = {}
+    for _, f in ipairs(T.tocFiles()) do if f:find("^Core/") then files[#files + 1] = f end end
+    local G, W, ns = T.load({ only = files })
+    W.chat("CHAT_MSG_WHISPER", W.whisperArgs("still here", "Tarin Ashgrove"))
+    T.ok(shownInChat(W, "still here"))
+end)
+
 T.it("filter hides handled whispers only when hideInChat is on", function()
     local G, W, ns, E, S = load()
     whisper(W, "hidden", "Tarin Ashgrove")
@@ -254,7 +295,7 @@ end)
 
 T.it("LastIncoming after a reload is the newest incoming message on record", function()
     local now = 1794499200
-    local CHAR = "Ayla Brightwind-Forever Realm One"
+    local CHAR = "Player-1-00000001"
     local db = { chars = { [CHAR] = { convs = {
         aaa = { key = "aaa", kind = "w", name = "Aaa", unread = 0, open = true, last = now - 50,
             msgs = { { t = now - 100, d = "i", m = "x" }, { t = now - 50, d = "o", m = "y" } } },

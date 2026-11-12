@@ -1,6 +1,24 @@
 # Changelog
 
-## 1.0.0 (unreleased)
+## 1.0.0
 
-- First version: whispers and Battle.net whispers in one window with a conversation rail,
-  in the EllesmereUI look.
+First release.
+
+- Whispers and Battle.net whispers in one window: a rail of conversations (class icon,
+  unread count, offline contacts greyed out) and the chat on the right.
+- Grouped messages with day separators and a "New" line, clickable items, quests and
+  links (links open a copy box), AFK, DND and "player not found" lines.
+- Compose box: Enter sends and splits long messages, Up and Down recall what you sent,
+  drafts per conversation, shift-clicked items go in.
+- Your reply keys open Sotto (outside instances), and whispers you start from the chat box
+  or a player menu continue in Sotto. Sotto never touches the game's own chat box.
+- Out of combat the window opens on a new whisper; in combat a notification card slides
+  in instead. A soft chime, the game's whisper sound, or none.
+- Boss fights and other chat lockdowns: whispers stay in your normal chat and arrive in
+  Sotto afterwards; sending pauses and your draft waits.
+- History kept for 7, 30 or 90 days, or until logout.
+- In-window settings, a minimap button with the unread count, `/sotto`, key bindings
+  (including "whisper the last person you whispered").
+- Follows EllesmereUI's panel colour, font and accent live; class colour accent by
+  default.
+- Offers to turn off WIM so whispers do not arrive twice.

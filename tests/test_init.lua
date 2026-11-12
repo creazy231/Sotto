@@ -1,5 +1,10 @@
 local T = T
 
+T.it("an unpackaged copy reports its version as dev", function()
+    local G, W, ns = T.load()
+    T.eq(ns.version, "dev")
+end)
+
 T.it("IsSecret spots a secret among plain values", function()
     local G, W, ns = T.load()
     T.ok(ns.IsSecret("a", T.secret("x"), 1), "secret found")

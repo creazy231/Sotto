@@ -1,0 +1,41 @@
+# Packages Sotto and uploads it when a version tag is pushed (e.g. 1.0.0,
+# 1.1.0-beta1). Uses the BigWigs packager, which reads the TOC's Interface
+# (16001 = WoW Forever) and uploads to every site whose project id is in the
+# TOC and whose token is set as a repository secret:
+#   CurseForge  ## X-Curse-Project-ID  + secret CF_API_KEY
+#   Wago        ## X-Wago-ID           + secret WAGO_API_TOKEN
+#   WoWInterface ## X-WoWI-ID          + secret WOWI_API_TOKEN
+# A GitHub release with the zip is always created. Tags containing "alpha" or
+# "beta" are uploaded as alpha/beta files. See docs/RELEASING.md.
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      CF_API_KEY: ${{ secrets.CF_API_KEY }}
+      WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+      WOWI_API_TOKEN: ${{ secrets.WOWI_API_TOKEN }}
+      GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Offline tests
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y luajit
+          luajit tests/run.lua
+          luajit tests/syntax.lua
+
+      - name: Package and upload
+        uses: BigWigsMods/packager@v2

@@ -1,5 +1,5 @@
 local T = T
-local CHAR = "Ayla Brightwind-Forever Realm One"
+local CHAR = "Player-1-00000001"
 
 local function load(opts)
     local G, W, ns = T.load(opts)
@@ -131,13 +131,28 @@ T.it("Prune drops old messages and empty closed conversations", function()
     T.eq(S.Get("bbb"), nil, "empty closed conversation removed")
 end)
 
-T.it("history kept until logout is cleared on logout", function()
+T.it("history kept until logout is cleared at the next login, not by a reload", function()
     local G, W, ns, S = load()
     ns.Set("keepDays", 0)
     local a = S.Ensure("w", "Aaa")
     S.Add(a, "i", "x")
     W.fire("PLAYER_LOGOUT")
-    T.eq(#a.msgs, 0)
+    T.eq(#a.msgs, 1, "logout itself keeps it (a reload logs out too)")
+    W.fire("PLAYER_ENTERING_WORLD", false, true)
+    T.eq(#a.msgs, 1, "a reload keeps it")
+    W.fire("PLAYER_ENTERING_WORLD", true, false)
+    T.eq(#a.msgs, 0, "the next real login clears it")
+end)
+
+T.it("retention changes apply at the next login, not at once", function()
+    local G, W, ns, S = load()
+    local a = S.Ensure("w", "Aaa")
+    S.Add(a, "i", "old", G.time() - 20 * 86400)
+    S.Add(a, "i", "new", G.time() - 60)
+    ns.Set("keepDays", 7)
+    T.eq(#a.msgs, 2, "nothing deleted by the click")
+    W.fire("PLAYER_ENTERING_WORLD", true, false)
+    T.eq(#a.msgs, 1, "pruned at login")
 end)
 
 T.it("old history is pruned at login", function()

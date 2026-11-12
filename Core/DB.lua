@@ -48,7 +48,16 @@ function ns.Set(key, value)
     ns.Fire("SETTING_CHANGED", key, value)
 end
 
+-- The logged-in character: its GUID (on WoW Forever UnitName returns first
+-- name and surname separately, so a name key could merge two characters).
+local charKey
 function ns.CharKey()
+    if charKey then return charKey end
+    local guid = UnitGUID and UnitGUID("player")
+    if not ns.IsSecret(guid) and type(guid) == "string" and guid ~= "" then
+        charKey = guid
+        return guid
+    end
     return (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
 end
 

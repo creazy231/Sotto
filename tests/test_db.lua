@@ -32,9 +32,9 @@ T.it("an existing SottoDB keeps its values and unknown keys", function()
     T.eq(ns.Get("openOn"), "nocombat", "missing keys get defaults")
 end)
 
-T.it("CharKey is name and realm", function()
+T.it("CharKey is the character's GUID", function()
     local G, W, ns = T.load()
-    T.eq(ns.CharKey(), "Ayla Brightwind-Forever Realm One")
+    T.eq(ns.CharKey(), "Player-1-00000001")
 end)
 
 T.it("window geometry has defaults", function()

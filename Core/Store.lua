@@ -176,14 +176,9 @@ function S.Prune(days)
     ns.Fire("CONV_UPDATED")
 end
 
-ns.On("PLAYER_LOGIN", function()
-    S.Prune(ns.Get("keepDays"))
-end)
-
-ns.On("PLAYER_LOGOUT", function()
-    if ns.Get("keepDays") == 0 then S.Prune(0) end
-end)
-
-ns.Listen("SETTING_CHANGED", function(key, value)
-    if key == "keepDays" and type(value) == "number" and value > 0 then S.Prune(value) end
+-- Pruning happens once per real login, never on /reload or on a settings
+-- click: "Until logout" clears the previous session's history at the next
+-- login, a shorter retention takes effect at the next login.
+ns.On("PLAYER_ENTERING_WORLD", function(_, isInitialLogin)
+    if isInitialLogin and not ns.IsSecret(isInitialLogin) then S.Prune(ns.Get("keepDays")) end
 end)

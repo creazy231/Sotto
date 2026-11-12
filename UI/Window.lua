@@ -244,6 +244,91 @@ grip:SetScript("OnMouseUp", function()
     UI.SavePosition()
 end)
 
+-------------------------------------------------------------------------------
+--  New conversation: a name field over the header. Sotto never opens
+--  Blizzard's chat box (see Core/Intercept.lua).
+-------------------------------------------------------------------------------
+local prompt = CreateFrame("Frame", nil, main)
+prompt:SetPoint("TOPLEFT")
+prompt:SetPoint("TOPRIGHT")
+prompt:SetHeight(HEAD_H)
+prompt:SetFrameLevel(main:GetFrameLevel() + 30)
+prompt:EnableMouse(true)
+prompt.bg = W.Fill(prompt, "panel")
+prompt.bg:SetAllPoints()
+W.Hair(prompt, "BOTTOM", "accentLine")
+prompt.label = W.Text(prompt, "section", "muted")
+prompt.label:SetPoint("TOPLEFT", 12, -6)
+prompt.label:SetText(L["Whisper to"]:upper())
+prompt.close = W.IconButton(prompt, "close", L["Cancel"], function() UI.ClosePrompt() end)
+prompt.close:SetPoint("RIGHT", -6, 0)
+local promptField = CreateFrame("Frame", nil, prompt)
+promptField:SetPoint("TOPLEFT", 10, -19)
+promptField:SetPoint("BOTTOMRIGHT", prompt.close, "BOTTOMLEFT", -6, 1)
+promptField.bg = W.Fill(promptField, "inset")
+promptField.bg:SetAllPoints()
+W.Border(promptField, "focus")
+prompt.edit = CreateFrame("EditBox", nil, promptField)
+prompt.edit:SetAllPoints()
+prompt.edit:SetAutoFocus(false)
+prompt.edit:SetTextInsets(6, 6, 0, 0)
+W.Paint(prompt.edit, function(e)
+    e:SetFont(ns.Theme.Font("body"))
+    e:SetTextColor(ns.Theme.Color("text"))
+end)
+prompt.hint = W.Text(promptField, "body", "muted")
+prompt.hint:SetPoint("LEFT", 6, 0)
+prompt.hint:SetText(L["Name"])
+prompt:Hide()
+UI.prompt = prompt
+
+-- The name as the game spells it: a known conversation, a friend, a guild
+-- mate, else each word capitalised (the server's spelling replaces it with
+-- the first message either way).
+local function properName(input)
+    local key = ns.Names.Key(input)
+    if not key then return nil end
+    local known = ns.Store.Get(key)
+    if known then return known.name end
+    if C_FriendList and C_FriendList.GetNumFriends then
+        for i = 1, C_FriendList.GetNumFriends() or 0 do
+            local f = C_FriendList.GetFriendInfoByIndex(i)
+            local n = type(f) == "table" and f.name
+            if not ns.IsSecret(n) and type(n) == "string" and ns.Names.Key(n) == key then return ns.Names.Display(n) end
+        end
+    end
+    if IsInGuild and IsInGuild() then
+        for i = 1, GetNumGuildMembers() or 0 do
+            local n = GetGuildRosterInfo(i)
+            if not ns.IsSecret(n) and type(n) == "string" and ns.Names.Key(n) == key then return ns.Names.Display(n) end
+        end
+    end
+    return (ns.Names.Display(input):gsub("(%a)([%w']*)", function(a, b) return a:upper() .. b:lower() end))
+end
+
+function UI.NewConversation()
+    if not win:IsShown() then UI.Show() end
+    if view == "settings" then UI.Show() end
+    prompt.edit:SetText("")
+    prompt.hint:Show()
+    prompt:Show()
+    prompt.edit:SetFocus()
+end
+
+function UI.ClosePrompt()
+    prompt.edit:ClearFocus()
+    prompt:Hide()
+end
+
+prompt.edit:SetScript("OnTextChanged", function(self) prompt.hint:SetShown(self:GetText() == "") end)
+prompt.edit:SetScript("OnEscapePressed", function() UI.ClosePrompt() end)
+prompt.edit:SetScript("OnEnterPressed", function(self)
+    local name = properName((self:GetText():gsub("^%s+", ""):gsub("%s+$", "")))
+    UI.ClosePrompt()
+    local conv = name and ns.Store.Ensure("w", name)
+    if conv then UI.Open(conv, { focus = true }) end
+end)
+
 ns.Rail.Build(rail)
 ns.Log.Build(logFrame)
 ns.Compose.Build(composeFrame)
@@ -302,6 +387,10 @@ end
 
 function UI.Select(conv)
     if not conv then return end
+    if not conv.open then
+        conv.open = true -- starting a closed conversation again brings it back
+        ns.Fire("CONV_UPDATED", conv)
+    end
     if view == "chat" and active == conv then
         ns.Store.MarkRead(conv)
         return
@@ -323,10 +412,8 @@ function UI.Show()
     local list = ns.Store.List()
     local target = (active and active.open) and active or list[1]
     if target then
-        if view ~= "chat" or active ~= target then
-            view = "none"
-            UI.Select(target)
-        end
+        view = "none" -- select again: marks it read and places the New line
+        UI.Select(target)
     else
         active = nil
         UI.ShowView("empty")
@@ -425,7 +512,7 @@ function UI.MoreMenu(anchor)
     end }
     items[#items + 1] = { text = L["Clear history"], func = function() ns.Store.Clear(c) end }
     items[#items + 1] = { text = L["Close conversation"], color = "danger", func = function() ns.Store.Close(c) end }
-    W.Menu(anchor, items, 170)
+    W.Menu(anchor, items, 170, "RIGHT")
 end
 
 -------------------------------------------------------------------------------
@@ -516,7 +603,9 @@ win:SetScript("OnShow", function()
     win:SetAlpha(1)
     targetAlpha = 1
     if not fadeTicker then fadeTicker = C_Timer.NewTicker(0.25, checkIdle) end
+    ns.Toast.HideAll()
     ns.Rail.Refresh()
+    ns.Contacts.ScheduleRefresh()
 end)
 
 win:SetScript("OnHide", function()
@@ -577,6 +666,8 @@ end)
 
 ns.Listen("CONV_UPDATED", function(conv)
     if active and not active.open then
+        -- The keyboard must not carry on into another conversation.
+        if ns.Compose.HasFocus() then ns.Compose.box:ClearFocus() end
         local list = ns.Store.List()
         if win:IsShown() and list[1] then
             UI.Select(list[1])
@@ -597,6 +688,21 @@ ns.Listen("CONTACT_UPDATED", function(conv)
 end)
 
 ns.Listen("UNREAD_CHANGED", function() ns.Rail.Refresh() end)
+
+ns.Listen("CONTACTS_REFRESHED", function()
+    UI.UpdateHeader()
+    ns.Rail.Refresh()
+end)
+
+-- A whisper sent from the chat box continues in Sotto.
+ns.Listen("OUTGOING", function(conv, opens)
+    if not opens then return end
+    if not win:IsShown() then
+        UI.Open(conv)
+    elseif view ~= "settings" and active ~= conv and not ns.Compose.HasFocus() then
+        UI.Select(conv)
+    end
+end)
 
 ns.Listen("LOCKDOWN_CHANGED", function(locked)
     banner:SetShown(locked)

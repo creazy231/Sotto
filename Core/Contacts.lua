@@ -101,10 +101,7 @@ end
 
 local function unitKey(unit)
     if not UnitExists(unit) or not UnitIsPlayer(unit) then return nil end
-    local name, realm = UnitName(unit)
-    if ns.IsSecret(name, realm) or type(name) ~= "string" then return nil end
-    if type(realm) == "string" and realm ~= "" then name = name .. "-" .. realm end
-    return ns.Names.Key(name)
+    return ns.Names.Key(ns.Names.Unit(unit))
 end
 
 local function refreshCharacter(conv)
@@ -171,10 +168,11 @@ local function refreshBN(conv)
     end
 end
 
-function C.Refresh(conv)
+-- silent: no CONTACT_UPDATED (a batch fires CONTACTS_REFRESHED once instead)
+function C.Refresh(conv, silent)
     if not conv then return end
     if conv.kind == "bn" then refreshBN(conv) else refreshCharacter(conv) end
-    changed(conv)
+    if not silent then changed(conv) end
 end
 
 -------------------------------------------------------------------------------
@@ -269,9 +267,33 @@ end
 -------------------------------------------------------------------------------
 --  Events
 -------------------------------------------------------------------------------
-local function refreshOpen()
-    for _, conv in ipairs(ns.Store.List()) do C.Refresh(conv) end
+-- Roster events come in bursts and a rail can hold many conversations: one
+-- deferred pass over what is on screen (the active conversation and the rail
+-- badges), nothing while the window is hidden.
+local scheduled = false
+
+local function refreshVisible()
+    scheduled = false
+    if not (ns.UI and ns.UI.IsShown and ns.UI.IsShown()) then return end
+    local seen, list = {}, {}
+    local active = ns.UI.Active and ns.UI.Active()
+    if active then seen[active] = true; list[1] = active end
+    for _, b in ipairs((ns.Rail and ns.Rail.badges) or {}) do
+        if b.conv and not seen[b.conv] then
+            seen[b.conv] = true
+            list[#list + 1] = b.conv
+        end
+    end
+    for _, conv in ipairs(list) do C.Refresh(conv, true) end
+    if #list > 0 then ns.Fire("CONTACTS_REFRESHED") end
 end
+
+function C.ScheduleRefresh()
+    if scheduled then return end
+    scheduled = true
+    C_Timer.After(1, refreshVisible)
+end
+local refreshOpen = C.ScheduleRefresh
 
 local function onUnit(unit)
     local key = unitKey(unit)
