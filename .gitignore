@@ -1,0 +1,13 @@
+# Mockup assets: a private game screenshot, EllesmereUI's licensed font and
+# icons cropped from WIM. Kept locally, never committed.
+docs/mockup/
+
+# Packager output and local builds
+.release/
+*.zip
+
+# OS and editor clutter
+.DS_Store
+._*
+__pycache__/
+*.pyc

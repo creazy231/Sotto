@@ -1,0 +1,147 @@
+# Sotto — design
+
+Approved 2026-11-12 (layout and look by the user; everything after "go with that" decided
+autonomously while the user was away, see "My calls").
+
+## Intent
+
+A whisper messenger for World of Warcraft: Forever that works like WIM (whispers open in
+their own window, you answer there) but with only the options that matter, drawn in the
+user's EllesmereUI look composed the way Polestar draws its "EllesmereUI" scheme. It
+replaces WIM 3.19.5 + EllesmereSkin_WIM 1.3.0. Design is the user's top priority: the
+built window must stay pixel-close to the approved mockup
+(`docs/mockup/rail-chat-mockup.html`).
+
+## Goals
+
+- Character whispers and Battle.net whispers, incoming and outgoing, in one window.
+- **Rail + chat layout** (picked by the user from three sketches):
+  - a 46 px rail on the left: the mark on top, one 28 px badge per conversation (class
+    icon, Battle.net initials), unread count pill, accent bar on the active one, offline
+    contacts greyed out, "+" (new conversation) and the gear at the bottom;
+  - the chat column: a header (online dot, name in class colour, "level · race class ·
+    zone", invite, "…" menu, close), the message log, the compose box.
+- Grouped message log: name and time once per run of messages, day separators, a "New"
+  divider, clickable links (items, quests, spells, players, URLs → copy box), system lines
+  (AFK, DND, offline, not found).
+- Compose box: Enter sends (long text split into 255-byte messages without breaking
+  links), Up/Down recalls sent lines, Esc leaves the box, shift-clicked links go in.
+- When a whisper arrives: the conversation goes to the top of the rail; the window opens
+  (Always / Out of combat / Never); if it doesn't, a notification card slides in above the
+  chat; a sound plays; the whisper is hidden from the normal chat window.
+- When the player starts a whisper (`/w`, the reply key, "Whisper" in menus) Sotto opens
+  the conversation instead of the chat box, when that is safe.
+- Boss fights / chat lockdown: an amber notice; whispers stay in normal chat and are
+  brought into Sotto when the lockdown ends, where the game allows it.
+- History survives reloads and logouts (30 days by default).
+- In-window settings (gear), launcher (minimap button with unread count, addon compartment,
+  `/sotto`, key bindings).
+- Follows EllesmereUI live (panel colour, accent, font) through its documented skinning
+  API; looks right without EllesmereUI too.
+
+## Non-goals
+
+- Channel, guild, party or raid chat windows (WIM's chat module).
+- Emoticons, RP profiles, spam filters, a history browser, multiple windows, skins,
+  Edit Mode integration, `/who` lookups.
+
+## Anti-goals (failure even if it "works")
+
+- Taint: an "Interface action failed" or a secret-value error inside Blizzard code caused by
+  Sotto.
+- A lost whisper: anything Sotto cannot show must stay visible in the normal chat.
+- Stealing keyboard focus when a whisper arrives (the player may be running with WASD).
+- Work every frame while idle.
+
+## Constraints
+
+- WoW Forever (game type camelot), Interface 16001, 12.1 engine, Lua 5.1.
+- Secret values: during chat messaging lockdown (encounters, Mythic+, PvP and
+  communication-restricted maps) whisper text and senders are secret. Blizzard only calls
+  message filters when every argument is accessible (`ChatFrameFilters.lua`, `canaccessvalue`).
+  Addon sends are blocked in lockdown.
+- Forever character names are two words without a realm ("Ayla Brightwind").
+- Blizzard's chat handler (`Mainline/ChatFrameOverrides.lua`, forever branch 1.60.1) runs the
+  filters first: a whisper an addon hides never reaches `SetLastTellTarget`, the
+  `TELL_MESSAGE` sound or `FlashClientIcon`. Sotto must do all three jobs itself.
+- No in-game testing for the builder: offline LuaJIT tests against a fake API, then the
+  user's `/reload`.
+
+## Approaches
+
+UI (the user picked): **Rail + chat** over "Tabs + chat" (cramped past ~5 conversations) and
+"classic WIM windows" (most clutter and options).
+
+Build: **a standalone addon** that draws its own frames and reads EllesmereUI's accent,
+panel colour and font through `EllesmereUI.RegisterSkin` (Polestar's approach), over
+reskinning WIM further (keeps WIM's options and complexity) or forking WIM (huge, GPL).
+
+## Decisions made with the user
+
+- Name: **Sotto** (from *sotto voce*), checked free on CurseForge, Wago, WoWInterface and
+  GitHub on 2026-11-12. Parley, Hush, Susurrus and Murmory are taken by whisper addons.
+- Layout: Rail + chat. Look: the mockup as shown, grouped messages, accent = class colour
+  with EllesmereUI's accent as a setting.
+
+## My calls (autonomous, user away)
+
+- **Palette:** Polestar's "EllesmereUI" scheme rebuilt from EllesmereUI's panel colour
+  (#141414 @ 92 %): sidebar −0.03, footer −0.02, panel +0.02, panelAlt +0.055,
+  sky +0.09 OKLab lightness; text #f8f8f8 / #cacccf / #a2a5a9; hairlines white 10 %,
+  hover 7 %, selected 11 %. Contact and accent colours lifted to 4.5:1 on the panel.
+- **Fonts:** EllesmereUI's font, no outline, 1 px shadow; names in "Expressway Bold" when
+  the EUI font is Expressway (falls back to the regular font). Without EUI: the game font.
+- **Settings (9):** Open the window (Always / Out of combat / Never), Sound (Soft chime /
+  Game whisper / None), Hide whispers from the chat window, Use this window for `/w` and
+  replies, Accent (Class colour / EllesmereUI), Text size (11–16), Fade when idle,
+  Remember conversations (Until logout / 7 / 30 / 90 days), Minimap button.
+- **Timestamps** are not a setting: the time sits next to each name.
+- **No auto-focus** on incoming whispers; focus only when the player asked (reply key,
+  click on a notification, `/w`, clicking the box).
+- **Lockdown sending:** the box says "Paused for the fight · your draft waits here" and keeps
+  the draft (the mockup's "Enter hands it to your chat" was dropped: putting text into
+  Blizzard's chat box from addon code in combat risks taint).
+- **Reply key:** Sotto keeps its own last-whisper target; a post-hook on
+  `ChatFrameUtil.ReplyTell`/`ReplyTell2` redirects R to it (Blizzard's own target goes stale
+  because hidden whispers never reach `SetLastTellTarget`). Sotto never writes Blizzard's
+  last-tell list.
+- **Interception:** post-hook each chat edit box's `UpdateHeader` (installed through
+  `ChatFrameUtil.ActivateChat` and at login) plus `ReplyTell`/`ReplyTell2`; act one frame
+  later, only out of combat, out of lockdown and with readable values; then reset the box
+  to SAY and close it with its own escape handler (WIM's proven sequence; secure slash
+  commands run before `ParseText` reads the chat type, so they are not affected). Text
+  already typed after `/w Name` is carried over.
+- **Recovery after lockdown:** queue `{event, lineID, time}` only while
+  `C_ChatInfo.InChatMessagingLockdown()` is true; when the chat restriction ends, rebuild
+  text, sender and GUID with `C_ChatInfo.GetChatLineText/SenderName/SenderGUID(lineID)`.
+  Unrecoverable lines are dropped quietly (they are already in normal chat). Secret
+  messages outside lockdown (possible for Battle.net senders on 12.1) are left to normal
+  chat and not queued.
+- **GM whispers** (`arg6 == "GM"`) and letterbox lines (`arg16`) are left to Blizzard.
+- **History model:** account-wide `SottoDB`; character conversations under the logged-in
+  character, Battle.net conversations shared by all characters (keyed by BattleTag when it
+  is readable). At most 400 messages per conversation; pruned by age at login.
+- **Contact info** from the whisper's GUID (`GetPlayerInfoByGUID`), the friends list, the
+  guild roster, the group, target and mouseover, and Battle.net game account info; never
+  `/who`.
+- **Toasts:** shown only when a whisper does not open the window; one card per
+  conversation (a "+N" counter instead of stacking), at most three, 8 s, hover pauses,
+  click opens and focuses, right-click dismisses. They stack upward from the window's
+  bottom-left corner.
+- **Sound:** a soft two-note chime synthesised for Sotto (`Media/Sounds/chime.ogg`), 2 s
+  cool-down, silent while the player is typing in that conversation; FlashClientIcon on
+  every incoming whisper.
+- **Launcher:** a round minimap button (EllesmereUI's minimap collects named minimap
+  buttons into its flyout), the addon compartment entry, `/sotto` (`/sotto settings`,
+  `/sotto reset`), key bindings Toggle / Reply to last whisper / Next unread.
+- **WIM:** when WIM is loaded Sotto shows a notice with "Turn off WIM" (disables WIM and
+  EllesmereSkin_WIM, then offers a reload). Sotto keeps working either way.
+- **whisperMode:** when the game is set to open whispers in new tabs, the settings show a
+  one-click switch to "In-line".
+- **Esc** closes the window (UISpecialFrames) unless the compose box has focus, which Esc
+  clears first.
+
+## Left to the builder
+
+Exact pixel offsets inside rows; animation curves; pool sizes; how many lines the mouse
+wheel scrolls; the order of the "…" menu entries.

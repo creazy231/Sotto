@@ -1,0 +1,33 @@
+## Interface: 16001
+## Title: Sotto
+## Notes: Whispers in a calm messenger window, drawn in the EllesmereUI look.
+## Author: creazy231
+## Version: 1.0.0
+## Category: Chat
+## X-Category: Chat
+## OptionalDeps: EllesmereUI
+## SavedVariables: SottoDB
+## IconTexture: Interface\AddOns\Sotto\Media\mark
+## AddonCompartmentFunc: Sotto_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: Sotto_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: Sotto_OnAddonCompartmentLeave
+
+Core\Init.lua
+Core\DB.lua
+Core\Color.lua
+Core\Names.lua
+Core\Format.lua
+Core\Theme.lua
+Core\Store.lua
+Core\Contacts.lua
+Core\Engine.lua
+Core\Intercept.lua
+UI\Widgets.lua
+UI\CopyBox.lua
+UI\Rail.lua
+UI\Log.lua
+UI\Compose.lua
+UI\Settings.lua
+UI\Toast.lua
+UI\Window.lua
+UI\Launcher.lua

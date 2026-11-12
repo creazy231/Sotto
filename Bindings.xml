@@ -1,0 +1,11 @@
+<Bindings>
+	<Binding name="SOTTO_TOGGLE" header="SOTTO" category="ADDONS">
+		Sotto_BindingToggle()
+	</Binding>
+	<Binding name="SOTTO_REPLY" category="ADDONS">
+		Sotto_BindingReply()
+	</Binding>
+	<Binding name="SOTTO_NEXT" category="ADDONS">
+		Sotto_BindingNext()
+	</Binding>
+</Bindings>
