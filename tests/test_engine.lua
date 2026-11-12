@@ -144,6 +144,38 @@ T.it("queued whisper is recovered once after the lockdown with its original time
     T.eq(#c.msgs, 1, "not twice")
 end)
 
+T.it("a Battle.net whisper in lockdown is recovered into its Battle.net conversation", function()
+    local G, W, ns, E, S = load(alex)
+    W.lockdown = true
+    -- In lockdown the account id is secret too; the chat line keeps text and sender.
+    W.chat("CHAT_MSG_BN_WHISPER", W.whisperArgs(T.secret("pull in 5?"), T.secret("|Kq5|k"),
+        { lineID = 901, bnID = T.secret(5) }))
+    W.chatLines[901] = { text = "pull in 5?", sender = "|Kq5|k", guid = "" }
+    T.eq(S.Get("bn:alex#1234"), nil, "nothing readable yet")
+    W.lockdown = false
+    W.fire("ADDON_RESTRICTION_STATE_CHANGED", 5, 0)
+    W.advance(1)
+    local c = S.Get("bn:alex#1234")
+    T.ok(c, "recovered into the Battle.net conversation")
+    T.eq(c.msgs[#c.msgs].m, "pull in 5?")
+    T.eq(c.msgs[#c.msgs].d, "i")
+end)
+
+T.it("a Battle.net whisper from a friend who logged off during the fight is recovered too", function()
+    local G, W, ns, E, S = load(alex)
+    W.lockdown = true
+    W.chat("CHAT_MSG_BN_WHISPER", W.whisperArgs(T.secret("gtg, bye"), T.secret("|Kq5|k"),
+        { lineID = 902, bnID = T.secret(5) }))
+    W.chatLines[902] = { text = "gtg, bye", sender = "|Kq5|k", guid = "" }
+    W.bnFriends[1].gameAccountInfo = { isOnline = false, clientProgram = "" }
+    W.lockdown = false
+    W.fire("ADDON_RESTRICTION_STATE_CHANGED", 5, 0)
+    W.advance(1)
+    local c = S.Get("bn:alex#1234")
+    T.ok(c, "found through the friend list")
+    T.eq(c.msgs[#c.msgs].m, "gtg, bye")
+end)
+
 T.it("unrecoverable lines are dropped quietly", function()
     local G, W, ns, E, S = load()
     W.lockdown = true
@@ -224,6 +256,24 @@ T.it("Battle.net whisper with a secret sender but readable text and id still arr
     T.ok(S.Get("bn:alex#1234"), "conversation")
 end)
 
+-- WoW Forever: a friend the game whispers by character (C_BattleNet.GetDefaultTitleWhisperTarget).
+local function titleFriend(G, W)
+    W.bnFriends = { { bnetAccountID = 8, accountName = "|Kq8|k", battleTag = "", titleTarget = "Kaela Dawnmere",
+        gameAccountInfo = { isOnline = true, clientProgram = "WoW", characterName = "Kaela Dawnmere" } } }
+end
+
+T.it("a Battle.net whisper from a friend the game whispers by character joins that character's conversation", function()
+    local G, W, ns, E, S = load(titleFriend)
+    W.chat("CHAT_MSG_WHISPER", W.whisperArgs("hey", "Kaela Dawnmere"))
+    W.chat("CHAT_MSG_BN_WHISPER", W.whisperArgs("still there?", "|Kq8|k", { bnID = 8 }))
+    W.chat("CHAT_MSG_BN_WHISPER_INFORM", W.whisperArgs("yes!", "|Kq8|k", { bnID = 8 }))
+    local c = S.Get("kaela dawnmere")
+    T.ok(c, "the character's conversation")
+    T.eq(#c.msgs, 3, "one conversation for the person")
+    T.eq(c.msgs[3].d, "o")
+    T.eq(next(ns.DB.bn), nil, "no Battle.net conversation")
+end)
+
 T.it("Battle.net send uses the account id", function()
     local G, W, ns, E, S = load(alex)
     local c = S.Ensure("bn", "|Kq5|k", { tag = "Alex#1234", bnID = 5 })
@@ -251,6 +301,84 @@ T.it("player not found becomes a system line and marks offline", function()
     local c = S.Get("tarin ashgrove")
     T.eq(c.msgs[#c.msgs].d, "s")
     T.eq(c.online, false)
+end)
+
+T.it("a Battle.net whisper to an offline friend says so in its conversation", function()
+    local G, W, ns, E, S = load(alex)
+    local c = S.Ensure("bn", "|Kq5|k", { tag = "Alex#1234", bnID = 5 })
+    ns.UI.Open(c)
+    W.chat("CHAT_MSG_BN_WHISPER_PLAYER_OFFLINE", W.whisperArgs("Alex is offline.", "|Kq5|k", { bnID = 5 }))
+    local m = c.msgs[#c.msgs]
+    T.ok(m, "a line in the conversation")
+    T.eq(m.d, "s")
+    T.eq(m.m, "Alex is offline.")
+    T.eq(c.online, false)
+    T.no(shownInChat(W, "Alex is offline."), "hidden from chat while Sotto shows it")
+end)
+
+T.it("an offline notice stays in chat while Sotto is hidden", function()
+    local G, W, ns, E, S = load(alex)
+    local c = S.Ensure("bn", "|Kq5|k", { tag = "Alex#1234", bnID = 5 })
+    W.chat("CHAT_MSG_BN_WHISPER_PLAYER_OFFLINE", W.whisperArgs("Alex is offline.", "|Kq5|k", { bnID = 5 }))
+    T.ok(shownInChat(W, "Alex is offline."))
+    T.eq(c.msgs[#c.msgs].m, "Alex is offline.", "and in the conversation")
+end)
+
+T.it("a whisper another addon hides from chat stays out of Sotto", function()
+    local G, W, ns, E, S = load()
+    G.ChatFrameUtil.AddMessageEventFilter("CHAT_MSG_WHISPER", function(_, _, msg)
+        return msg:find("^WTS gold") ~= nil -- a spam filter
+    end)
+    whisper(W, "WTS gold cheap", "Spam Bot")
+    T.eq(S.Get("spam bot"), nil, "the spam filter's call")
+    whisper(W, "hey", "Tarin Ashgrove")
+    T.ok(S.Get("tarin ashgrove"), "everything else arrives")
+end)
+
+T.it("while WIM still runs, its filter does not empty Sotto", function()
+    local G, W, ns, E, S = load(function(G, W) W.loadedAddons.WIM = true end)
+    -- WIM hides every whisper it shows itself; Sotto offers to turn it off.
+    G.ChatFrameUtil.AddMessageEventFilter("CHAT_MSG_WHISPER", function() return true end)
+    whisper(W, "hey", "Tarin Ashgrove")
+    T.ok(S.Get("tarin ashgrove"), "shown in Sotto too")
+end)
+
+T.it("a filter that keeps whispers out of the main chat tab does not empty Sotto", function()
+    local G, W, ns, E, S = load()
+    -- A chat addon that shows whispers in a tab of its own.
+    G.ChatFrameUtil.AddMessageEventFilter("CHAT_MSG_WHISPER", function(frame) return frame == G.DEFAULT_CHAT_FRAME end)
+    whisper(W, "hey", "Tarin Ashgrove")
+    T.ok(S.Get("tarin ashgrove"))
+end)
+
+T.it("a system line another addon hides stays out of the conversation", function()
+    local G, W, ns, E, S = load()
+    W.chat("CHAT_MSG_WHISPER", W.whisperArgs("hey", "Tarin Ashgrove"))
+    local c = S.Get("tarin ashgrove")
+    -- An addon whose own hidden message could not be delivered hides the game's line.
+    G.ChatFrameUtil.AddMessageEventFilter("CHAT_MSG_SYSTEM", function(_, _, msg)
+        return msg:find("^No player named") ~= nil
+    end)
+    W.chat("CHAT_MSG_SYSTEM", "No player named 'Tarin Ashgrove' is currently playing.")
+    T.eq(#c.msgs, 1, "no line")
+    T.eq(c.online, true, "still online")
+end)
+
+T.it("reporting a player removes their whispers, as Blizzard's chat does", function()
+    local G, W, ns, E, S = load()
+    whisper(W, "WTB your account", "Odd Stranger", { guid = "Player-2-0099" })
+    whisper(W, "hey", "Tarin Ashgrove", { guid = "Player-2-0001" })
+    W.chat("CHAT_MSG_WHISPER_INFORM", W.whisperArgs("hi", "Tarin Ashgrove", { guid = "Player-2-0001" }))
+    W.fire("PLAYER_REPORT_SUBMITTED", "Player-2-0099")
+    local odd = S.Get("odd stranger")
+    T.eq(#odd.msgs, 0, "their lines are gone")
+    T.no(odd.open, "and the empty conversation leaves the rail")
+    T.eq(#S.Get("tarin ashgrove").msgs, 2, "everyone else is untouched")
+    W.fire("PLAYER_REPORT_SUBMITTED", "Player-2-0001")
+    local tarin = S.Get("tarin ashgrove")
+    T.eq(#tarin.msgs, 1, "your own line stays")
+    T.eq(tarin.msgs[1].d, "o")
+    T.ok(tarin.open)
 end)
 
 T.it("sound respects the setting and the 2 s cool-down", function()

@@ -303,25 +303,99 @@ html,body{margin:0;background:#0b0b0c}
 <script>window.SOTTO_WIN={x:]] .. win[1] .. [[,y:]] .. (SH - win[2] - win[4]) .. [[,w:]] .. win[3] .. [[,h:]] .. win[4] .. [[};
 window.SOTTO_TOAST=]] .. toastJS .. [[;
 (function(){
+  // Listing shots (tools/make_listing.py). Parameters: w, h, scale, bg, focus=toast,
+  // cx, cy; layout=left|right|top puts the text on that side and the window on the
+  // other; eyebrow, title, sub, pills (comma separated), accent, size; hero=1 for
+  // the banner. In title and sub, | breaks the line and *word* takes the accent.
   var q = new URLSearchParams(location.search);
   if (!q.has('shot')) return;
   var W = parseInt(q.get('w') || '1920'), H = parseInt(q.get('h') || '1080'), s = parseFloat(q.get('scale') || '2');
   var f = (q.get('focus') === 'toast' && window.SOTTO_TOAST) ? window.SOTTO_TOAST : window.SOTTO_WIN;
-  var cx = parseFloat(q.get('cx') || (W / 2)), cy = parseFloat(q.get('cy') || (H / 2));
+  var layout = q.get('layout') || 'center', accent = q.get('accent') || '#ff7d0a';
+  var M = 130, fw = f.w * s, fh = f.h * s;
+  var cx = W / 2, cy = H / 2;
+  if (layout === 'left') cx = W - M - fw / 2;
+  if (layout === 'right') cx = M + fw / 2;
+  if (layout === 'top') cy = H - 170 - fh / 2;
+  if (q.has('cx')) cx = parseFloat(q.get('cx'));
+  if (q.has('cy')) cy = parseFloat(q.get('cy'));
   var st = document.getElementById('stage');
   st.style.background = 'none';
   document.documentElement.style.cssText = 'width:' + W + 'px;height:' + H + 'px;overflow:hidden';
-  document.body.style.cssText = 'margin:0;width:' + W + 'px;height:' + H + 'px;overflow:hidden;background:#0b0b0c url(' + q.get('bg') + ') center/cover no-repeat';
+  document.body.style.cssText = 'margin:0;position:relative;width:' + W + 'px;height:' + H + 'px;overflow:hidden;background:#0b0b0c url(' + q.get('bg') + ') center/cover no-repeat';
   st.style.transform = 'translate(' + (cx - (f.x + f.w / 2) * s) + 'px,' + (cy - (f.y + f.h / 2) * s) + 'px) scale(' + s + ')';
   st.style.overflow = 'visible';
-  if (q.has('hero')) {
+  st.style.zIndex = '2';
+
+  function rgba(hex, a) {
+    var n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  function esc(t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function rich(t) {
+    return esc(t).split('|').join('<br>').replace(/\*([^*]+)\*/g, '<span style="color:' + accent + '">$1</span>');
+  }
+  function add(html, css) {
     var d = document.createElement('div');
-    d.innerHTML = '<img src="icon.png" style="width:132px;height:132px;display:block;border-radius:26px;box-shadow:0 0 0 1px rgba(255,255,255,.08),0 18px 40px rgba(0,0,0,.55)">'
-      + '<div style="font-family:ExpresswayBold;font-size:104px;line-height:1;color:#f8f8f8;margin-top:28px;letter-spacing:.5px;text-shadow:0 2px 0 rgba(0,0,0,.5)">Sotto</div>'
-      + '<div style="font-family:Expressway;font-size:30px;line-height:1.3;color:#cacccf;margin-top:16px;max-width:620px;text-shadow:0 1px 0 rgba(0,0,0,.6)">Whispers in a calm messenger window,<br>drawn in the EllesmereUI look.</div>'
-      + '<div style="font-family:Expressway;font-size:21px;color:#ff7d0a;margin-top:22px;letter-spacing:2px">WOW FOREVER</div>';
-    d.style.cssText = 'position:absolute;left:120px;top:50%;transform:translateY(-50%);z-index:100000';
+    d.innerHTML = html;
+    d.style.cssText = 'position:absolute;pointer-events:none;' + css;
     document.body.appendChild(d);
+    return d;
+  }
+  if (!q.has('title') && !q.has('hero')) return;
+
+  // The text side darkens so the copy reads on any backdrop; a soft glow in the
+  // accent sits behind the window.
+  var dir = layout === 'right' ? '270deg' : (layout === 'top' ? '180deg' : '90deg');
+  add('', 'left:0;top:0;width:' + W + 'px;height:' + H + 'px;z-index:0;background:'
+    + 'linear-gradient(' + dir + ',rgba(9,9,11,.88) 0%,rgba(9,9,11,.58) 38%,rgba(9,9,11,0) 66%),'
+    + 'radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 50%,rgba(0,0,0,.5) 100%)');
+  var g = Math.max(fw, fh) * 0.85;
+  add('', 'z-index:1;left:' + (cx - g) + 'px;top:' + (cy - g) + 'px;width:' + 2 * g + 'px;height:' + 2 * g + 'px;'
+    + 'background:radial-gradient(circle,' + rgba(accent, 0.2) + ' 0%,' + rgba(accent, 0.07) + ' 38%,' + rgba(accent, 0) + ' 64%)');
+
+  var center = layout === 'top';
+  function eyebrow(t) {
+    return '<div style="font-family:ExpresswayBold;font-size:22px;letter-spacing:4px;text-transform:uppercase;color:' + accent
+      + ';display:flex;align-items:center;gap:16px' + (center ? ';justify-content:center' : '') + '">'
+      + '<span style="width:36px;height:2px;background:' + accent + '"></span>' + esc(t) + '</div>';
+  }
+  var html = '';
+  if (q.has('hero')) {
+    html = eyebrow('For WoW Forever')
+      + '<div style="display:flex;align-items:center;gap:30px;margin-top:30px">'
+      + '<img src="icon.png" style="width:118px;height:118px;border-radius:24px;box-shadow:0 0 0 1px rgba(255,255,255,.08),0 18px 40px rgba(0,0,0,.55)">'
+      + '<div style="font-family:ExpresswayBold;font-size:118px;line-height:1;color:#f8f8f8;text-shadow:0 2px 0 rgba(0,0,0,.5)">Sotto</div></div>'
+      + '<div style="font-family:Expressway;font-size:34px;line-height:1.35;color:#cacccf;margin-top:30px;text-shadow:0 1px 0 rgba(0,0,0,.6)">'
+      + rich('Whispers in a *calm* messenger window,|drawn in the EllesmereUI look.') + '</div>';
+  } else {
+    if (q.has('eyebrow')) html += eyebrow(q.get('eyebrow'));
+    html += '<div class="headline" style="font-family:ExpresswayBold;font-size:' + (q.get('size') || '94') + 'px;line-height:1.04;color:#f8f8f8;'
+      + 'margin-top:24px;white-space:nowrap;display:inline-block;text-shadow:0 2px 0 rgba(0,0,0,.45)">' + rich(q.get('title')) + '</div>';
+    if (q.has('sub')) {
+      html += '<div style="font-family:Expressway;font-size:32px;line-height:1.38;color:#cacccf;margin-top:26px;max-width:660px;'
+        + (center ? 'margin-left:auto;margin-right:auto;' : '') + 'text-shadow:0 1px 0 rgba(0,0,0,.6)">' + rich(q.get('sub')) + '</div>';
+    }
+    if (q.has('pills')) {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:36px;max-width:700px">'
+        + q.get('pills').split(',').map(function (p) {
+          return '<span style="font-family:Expressway;font-size:23px;color:#e9eaec;padding:10px 20px;border-radius:999px;'
+            + 'background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.13)">' + esc(p.trim()) + '</span>';
+        }).join('') + '</div>';
+    }
+  }
+  var col = W - fw - 2 * M - 110;
+  var css = 'z-index:3;';
+  if (layout === 'right') css += 'right:' + M + 'px;top:50%;transform:translateY(-50%);width:' + col + 'px';
+  else if (center) css += 'left:0;width:' + W + 'px;top:' + (q.get('ty') || '110') + 'px;text-align:center';
+  else css += 'left:' + M + 'px;top:50%;transform:translateY(-50%);width:' + (q.has('hero') ? 900 : col) + 'px';
+  var block = add(html, css);
+  var head = block.querySelector('.headline');
+  if (head && !center) {
+    document.fonts.ready.then(function () {
+      var size = parseFloat(head.style.fontSize);
+      while (head.offsetWidth > col && size > 56) { size -= 2; head.style.fontSize = size + 'px'; }
+    });
   }
 })();
 </script>

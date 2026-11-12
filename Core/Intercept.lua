@@ -117,18 +117,6 @@ local function readable(v, kind)
     return v
 end
 
--- WoW Forever whispers some Battle.net friends by character: Blizzard's
--- ChatFrameUtil.SendBNetTell sends those to this target instead. A target
--- that is the account token (|K...|k) is still a Battle.net whisper.
-local function titleTarget(bnID)
-    local get = C_BattleNet and C_BattleNet.GetDefaultTitleWhisperTarget
-    if not get then return nil end
-    local ok, target = pcall(get, bnID)
-    target = ok and readable(target, "string") or nil
-    if not target or target == "" or target:find("|K", 1, true) then return nil end
-    return target
-end
-
 -- Who the menu's Whisper entry would whisper, as Blizzard works it out
 -- (UnitPopupWhisperButtonMixin:OnClick); nil when Sotto cannot tell.
 local function menuTarget(cd)
@@ -152,7 +140,7 @@ local function menuTarget(cd)
             bnID = ok and readable(id, "number") or nil
         end
         if not bnID then return nil end
-        local char = titleTarget(bnID)
+        local char = ns.Contacts.TitleTarget(bnID)
         if char then
             return ns.Names.Key(char) and { name = char } or nil
         end

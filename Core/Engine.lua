@@ -124,13 +124,40 @@ local function uiShown()
     return ns.UI ~= nil and ns.UI.IsShown ~= nil and ns.UI.IsShown()
 end
 
+-- Other addons' chat filters: what they hide from the chat window (a spam
+-- filter; the game's line for an addon's own failed message) stays out of
+-- Sotto too. Blizzard's filter registry runs them as for a chat frame, with
+-- Sotto's own filter stepping aside meanwhile. They see a message frame of
+-- Sotto's (as WIM's filters see WIM's), never a chat tab: a filter that keeps
+-- whispers out of one tab must not keep them out of Sotto. While WIM still
+-- runs its filter hides every whisper WIM shows; Sotto shows them anyway and
+-- offers to turn WIM off.
+local othersPass = false
+local filterFrame
+local function hiddenByOthers(event, ...)
+    local process = ChatFrameUtil and ChatFrameUtil.ProcessMessageEventFilters
+    if not process or ns.IsSecret(...) then return false end
+    local loaded = C_AddOns and C_AddOns.IsAddOnLoaded
+    if loaded and loaded("WIM") then return false end
+    filterFrame = filterFrame or CreateFrame("ScrollingMessageFrame")
+    filterFrame:Hide()
+    othersPass = true
+    local ok, discard = pcall(process, filterFrame, event, ...)
+    othersPass = false
+    return ok and discard == true
+end
+
 function E.Filter(frame, event, ...)
+    if othersPass then return false end
     -- Never hide anything Sotto could not show (no window: a load error).
     if not ns.DB or not ns.Get("hideInChat") or not (ns.UI and ns.UI.win) then return false end
     if ns.IsSecret(...) then return false end
     if event == "CHAT_MSG_SYSTEM" then
         local _, kind = systemMatch((...))
         return (kind == "notfound" or kind == "ignored") and uiShown()
+    end
+    if event == "CHAT_MSG_BN_WHISPER_PLAYER_OFFLINE" then
+        return uiShown() and E.BNConvByID(select(13, ...)) ~= nil
     end
     local text, who, _, _, _, flags, _, _, _, _, _, _, bnID, _, _, letterbox = ...
     if letterbox then return false end
@@ -196,12 +223,17 @@ local function handle(event, t, recovered, ...)
         return
     end
     if seen(lineID) then return end
+    if hiddenByOthers(event, ...) then return end
 
     local hadSecrets = ns.IsSecret(...)
     if ns.IsSecret(guid) then guid = nil end
 
     local conv, isNew
-    if bn then
+    local char = bn and ns.Contacts.TitleTarget(bnID)
+    if char then
+        -- Forever whispers this friend by character: one conversation for them.
+        conv, isNew = ns.Store.Ensure("w", char)
+    elseif bn then
         conv, isNew = bnConversation(bnID, who)
     else
         conv, isNew = ns.Store.Ensure("w", who)
@@ -238,7 +270,7 @@ local function onAway(event, ...)
     if ns.IsSecret(...) then return end
     local text, who = ...
     local conv = ns.Store.Get(ns.Names.Key(who))
-    if not conv or type(text) ~= "string" then return end
+    if not conv or type(text) ~= "string" or hiddenByOthers(event, ...) then return end
     local kind = event == "CHAT_MSG_AFK" and "afk" or "dnd"
     local line = L[AWAY_TEXT[event]]:format(ns.Names.Short(conv.name), text)
     -- One auto-reply per minute is enough: it comes back for every message.
@@ -247,9 +279,10 @@ local function onAway(event, ...)
     ns.Store.Add(conv, "s", line, time(), kind)
 end
 
-local function onSystem(_, text)
-    local conv, kind = systemMatch(text)
-    if not conv then return end
+local function onSystem(event, ...)
+    local conv, kind = systemMatch((...))
+    if not conv or hiddenByOthers(event, ...) then return end
+    local text = ...
     if kind == "notfound" or kind == "ignored" then
         conv.online = kind == "ignored" and conv.online or false
         ns.Store.Add(conv, "s", text, time(), kind)
@@ -270,6 +303,26 @@ local function onToast(_, ...)
             ns.Fire("CONTACT_UPDATED", conv)
         end
     end
+end
+
+-- A Battle.net whisper to a friend who is offline: no inform comes back, the
+-- client sends this instead and Blizzard's chat prints its text.
+local function bnConvByID(bnID)
+    if ns.IsSecret(bnID) or type(bnID) ~= "number" then return nil end
+    for _, conv in pairs(ns.DB and ns.DB.bn or {}) do
+        if conv.bnID == bnID then return conv end
+    end
+end
+E.BNConvByID = bnConvByID
+
+local function onBNOffline(event, ...)
+    if ns.IsSecret(...) then return end
+    local text = ...
+    local conv = bnConvByID(select(13, ...))
+    if not conv or type(text) ~= "string" or text == "" or hiddenByOthers(event, ...) then return end
+    conv.online = false
+    ns.Store.Add(conv, "s", text, time(), "notfound")
+    ns.Fire("CONTACT_UPDATED", conv)
 end
 
 -------------------------------------------------------------------------------
@@ -294,6 +347,10 @@ function E.Recover()
         a[1] = a[1] or lineCall(info.GetChatLineText, lineID)
         a[2] = a[2] or lineCall(info.GetChatLineSenderName, lineID)
         a[12] = a[12] or lineCall(info.GetChatLineSenderGUID, lineID)
+        -- The account id is secret in lockdown and no chat line keeps it.
+        if e.event == "CHAT_MSG_BN_WHISPER" or e.event == "CHAT_MSG_BN_WHISPER_INFORM" then
+            a[13] = a[13] or ns.Contacts.BNIDFromName(a[2])
+        end
         ns.Safe(handle, e.event, e.t, true, unpack(a, 1, e.n))
     end
 end
@@ -379,6 +436,10 @@ ns.On("CHAT_MSG_AFK", onAway)
 ns.On("CHAT_MSG_DND", onAway)
 ns.On("CHAT_MSG_SYSTEM", onSystem)
 ns.On("CHAT_MSG_BN_INLINE_TOAST_ALERT", onToast)
+ns.On("CHAT_MSG_BN_WHISPER_PLAYER_OFFLINE", onBNOffline)
+ns.On("PLAYER_REPORT_SUBMITTED", function(_, guid)
+    if not ns.IsSecret(guid) then ns.Store.ForgetPlayer(guid) end
+end)
 for _, ev in ipairs({ "ADDON_RESTRICTION_STATE_CHANGED", "ENCOUNTER_START", "ENCOUNTER_END",
     "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA",
     "CHALLENGE_MODE_START", "CHALLENGE_MODE_COMPLETED" }) do
@@ -388,7 +449,8 @@ end
 local addFilter = (ChatFrameUtil and ChatFrameUtil.AddMessageEventFilter) or ChatFrame_AddMessageEventFilter
 if addFilter then
     for _, ev in ipairs({ "CHAT_MSG_WHISPER", "CHAT_MSG_WHISPER_INFORM", "CHAT_MSG_BN_WHISPER",
-        "CHAT_MSG_BN_WHISPER_INFORM", "CHAT_MSG_AFK", "CHAT_MSG_DND", "CHAT_MSG_SYSTEM" }) do
+        "CHAT_MSG_BN_WHISPER_INFORM", "CHAT_MSG_AFK", "CHAT_MSG_DND", "CHAT_MSG_SYSTEM",
+        "CHAT_MSG_BN_WHISPER_PLAYER_OFFLINE" }) do
         addFilter(ev, E.Filter)
     end
 end

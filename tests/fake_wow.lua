@@ -801,8 +801,12 @@ function F.new(opts)
     G.C_PartyInfo = { InviteUnit = function(n) W.invited = n end }
     G.InviteUnit = function(n) W.invited = n end
     G.BNGetNumFriends = function() return #W.bnFriends end
+    -- Like the client's (auto-complete presence): it only knows online friends.
     G.BNet_GetBNetIDAccount = function(name)
-        for _, f in ipairs(W.bnFriends) do if f.accountName == name then return f.bnetAccountID end end
+        for _, f in ipairs(W.bnFriends) do
+            local online = not f.gameAccountInfo or f.gameAccountInfo.isOnline ~= false
+            if f.accountName == name and online then return f.bnetAccountID end
+        end
     end
     G.C_BattleNet = {
         GetFriendAccountInfo = function(i) return W.bnFriends[i] end,

@@ -160,3 +160,21 @@ reskinning WIM further (keeps WIM's options and complexity) or forking WIM (huge
 
 Exact pixel offsets inside rows; animation curves; pool sizes; how many lines the mouse
 wheel scrolls; the order of the "…" menu entries.
+- **Checked against WIM 3.19.6 (after the Battle.net menu fixes):** Sotto now also
+  - recovers Battle.net whispers from a chat lockdown: the account id is secret then and no
+    chat line keeps it, so it comes back from the line's account name
+    (`BNet_GetBNetIDAccount`, or the friend list for a friend who logged off meanwhile);
+  - shows `CHAT_MSG_BN_WHISPER_PLAYER_OFFLINE` (a Battle.net whisper to an offline friend) in
+    that conversation and marks it offline; hidden from chat only while Sotto is shown;
+  - files every Battle.net whisper of a friend Forever whispers by character
+    (`Contacts.TitleTarget`) under that character, like the menu and Blizzard's `SendBNetTell`;
+  - runs other addons' chat filters through Blizzard's registry
+    (`ChatFrameUtil.ProcessMessageEventFilters` on a hidden message frame of Sotto's, never a
+    chat tab, Sotto's own filter stepping aside): what
+    they hide (spam filters; LayerSwap's line for its own undeliverable addon message) stays
+    out of Sotto. Not while WIM still runs: its filter hides every whisper it shows;
+  - on `PLAYER_REPORT_SUBMITTED` drops the reported player's whispers (own lines stay), as
+    Blizzard's chat removes their lines; a conversation left empty leaves the rail.
+  Left as is: censored lines (the event's text is what Blizzard shows; not verifiable
+  offline), AFK/DND as reply target (Blizzard does not do it either), WIM's 800-character
+  Battle.net split (Sotto splits at 255; harmless).

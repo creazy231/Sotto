@@ -127,6 +127,37 @@ local function refreshCharacter(conv)
     end
 end
 
+-- WoW Forever whispers some Battle.net friends by character (title friends):
+-- Blizzard's ChatFrameUtil.SendBNetTell sends those to this target instead.
+-- A target that is the account token (|K...|k) is still a Battle.net whisper.
+function C.TitleTarget(bnID)
+    local get = C_BattleNet and C_BattleNet.GetDefaultTitleWhisperTarget
+    if not get or not readable(bnID, "number") then return nil end
+    local ok, target = pcall(get, bnID)
+    target = ok and readable(target, "string") or nil
+    if not target or target:find("|K", 1, true) then return nil end
+    return target
+end
+
+-- The account id for an account name (the |K token a chat line carries).
+-- BNet_GetBNetIDAccount only knows online friends; the friend list knows all.
+function C.BNIDFromName(name)
+    name = readable(name, "string")
+    if not name then return nil end
+    if BNet_GetBNetIDAccount then
+        local ok, id = pcall(BNet_GetBNetIDAccount, name)
+        id = ok and readable(id, "number") or nil
+        if id then return id end
+    end
+    if not (C_BattleNet and C_BattleNet.GetFriendAccountInfo) then return nil end
+    for i = 1, (BNGetNumFriends and BNGetNumFriends()) or 0 do
+        local f = C_BattleNet.GetFriendAccountInfo(i)
+        if type(f) == "table" and readable(f.accountName, "string") == name then
+            return readable(f.bnetAccountID, "number")
+        end
+    end
+end
+
 -- Battle.net: session id first, then the BattleTag (ids change per session).
 function C.ResolveBN(conv)
     if not (C_BattleNet and C_BattleNet.GetAccountInfoByID) then return nil end

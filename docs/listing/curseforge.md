@@ -16,12 +16,15 @@ Everything to paste into the CurseForge project form (authors.curseforge.com).
 
 ## Screenshots (gallery, in this order, with these captions)
 
-1. `screenshots/01-conversation.png` — One window for every whisper: a rail of conversations, the chat on the right.
-2. `screenshots/02-new-whisper.png` — Unread badges, a "New" line, and links you can click.
-3. `screenshots/03-notification.png` — In combat a small card slides in instead of the window.
-4. `screenshots/04-boss-fight.png` — Boss fights: whispers wait in your chat and arrive afterwards.
-5. `screenshots/05-settings.png` — Nine settings, right in the window.
-6. `screenshots/06-empty.png` — A calm start.
+1. `screenshots/01-conversation.png` — Every whisper, one calm window: conversations in a rail, the chat right beside them.
+2. `screenshots/02-new-whisper.png` — See what's new at a glance: unread counts on every badge, a "New" line in the chat.
+3. `screenshots/03-notification.png` — Stays out of your fight: in combat a small card slides in instead of the window.
+4. `screenshots/04-boss-fight.png` — Boss fight? Nothing gets lost: whispers wait in your chat and land in Sotto when the fight ends.
+5. `screenshots/05-settings.png` — Nine settings. That's all.
+6. `screenshots/06-empty.png` — Fits right into your UI: EllesmereUI's colours and font, or your class colour.
+
+The images carry their headline; `python3 -I tools/make_listing.py <render-dir>` renders them again
+from the addon's real UI (copy and layout in its `SHOTS` list, render dir as in CLAUDE.md).
 
 ## Description (Markdown)
 

@@ -29,6 +29,9 @@ Polestar look. Author for anything public: creazy231.
   `fonts/expressway.ttf`, `fonts/expressway-bold.ttf`, `class/class-<class>.png` and
   `backdrop.jpg` (from `docs/mockup/assets`). Serve the dir over http (fonts need it);
   `?shot=1&scale=2&bg=<image>` frames it for listing screenshots (`docs/listing/`).
+- Listing images with their headlines: `python3 -I tools/make_listing.py <dir>` renders every scene
+  and shoots all of `docs/listing/screenshots/` with headless Chrome (copy and layout: its `SHOTS`
+  list; one idea per headline, one `*accent*` word, `|` breaks a line).
 - Git: repo-local identity creazy231 / 13473174+creazy231@users.noreply.github.com, remote
   github.com/creazy231/Sotto (private). Releases: tag → `.github/workflows/release.yml`
   (BigWigs packager); see `docs/RELEASING.md`.

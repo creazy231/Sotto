@@ -22,4 +22,9 @@ First release.
   (including "whisper the last person you whispered").
 - Follows EllesmereUI's panel colour, font and accent live; class colour accent by
   default.
+- Battle.net friends: whispers from a boss fight arrive afterwards too, a whisper to an
+  offline friend says so, and friends WoW Forever whispers by character keep one
+  conversation.
+- What another addon hides from the chat window (a spam filter, for example) stays out of
+  Sotto too; reporting a player removes their whispers, as the chat window does.
 - Offers to turn off WIM so whispers do not arrive twice.

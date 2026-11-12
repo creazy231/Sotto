@@ -146,6 +146,30 @@ function S.Clear(conv)
     ns.Fire("CONV_UPDATED", conv)
 end
 
+-- A reported player: Blizzard's chat removes their lines, Sotto their
+-- whispers (your own stay). A conversation left empty leaves the rail.
+function S.ForgetPlayer(guid)
+    local convs = charConvs()
+    if not convs or type(guid) ~= "string" or guid == "" then return end
+    for _, conv in pairs(convs) do
+        if conv.guid == guid then
+            local keep = {}
+            for _, m in ipairs(conv.msgs) do
+                if m.d == "o" then keep[#keep + 1] = m end
+            end
+            conv.msgs = keep
+            if #keep == 0 then
+                S.Close(conv)
+            else
+                local had = (conv.unread or 0) > 0
+                conv.unread = 0
+                ns.Fire("CONV_UPDATED", conv)
+                if had then ns.Fire("UNREAD_CHANGED", conv) end
+            end
+        end
+    end
+end
+
 function S.UnreadTotal()
     local n = 0
     for _, conv in ipairs(S.List()) do n = n + (conv.unread or 0) end
