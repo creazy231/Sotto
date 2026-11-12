@@ -92,7 +92,7 @@ reskinning WIM further (keeps WIM's options and complexity) or forking WIM (huge
 - **Fonts:** EllesmereUI's font, no outline, 1 px shadow; names in "Expressway Bold" when
   the EUI font is Expressway (falls back to the regular font). Without EUI: the game font.
 - **Settings (9):** Open the window (Always / Out of combat / Never), Sound (Soft chime /
-  Game whisper / None), Hide whispers from the chat window, Use Sotto for replies, Accent (Class colour / EllesmereUI), Text size (11–16), Fade when idle,
+  Game whisper / None), Hide whispers from the chat window, Use Sotto to whisper, Accent (Class colour / EllesmereUI), Text size (11–16), Fade when idle,
   Remember conversations (Until logout / 7 / 30 / 90 days), Minimap button.
 - **Timestamps** are not a setting: the time sits next to each name.
 - **No auto-focus** on incoming whispers; focus only when the player asked (reply key,
@@ -103,11 +103,24 @@ reskinning WIM further (keeps WIM's options and complexity) or forking WIM (huge
 - **Reply keys (revised after the final review):** Sotto never writes to Blizzard's chat
   edit box or its last-tell list. Closing or refocusing that box from addon code leaves
   `ACTIVE_CHAT_EDIT_BOX` tainted, after which Blizzard's chat code runs tainted and errors on
-  the secret names of Battle.net whispers and chat lockdown. Instead, while "Use Sotto for
-  replies" is on, the player's own REPLY/REPLY2 keys are override-bound to Sotto's
-  bindings (set out of combat, outside instances). `/w` and "Whisper" in menus stay with
-  Blizzard's box; the sent whisper opens its conversation in Sotto. A typed `/r` that would
-  answer a stale target prints a notice (read-only post-hook on `ProcessChatType`).
+  the secret names of Battle.net whispers and chat lockdown. Instead, while "Use Sotto to
+  whisper" is on, the player's own REPLY/REPLY2 keys are override-bound to Sotto's
+  bindings (set out of combat, outside instances). `/w` stays with Blizzard's box; the
+  sent whisper opens its conversation in Sotto. A typed `/r` that would answer a stale
+  target prints a notice (read-only post-hook on `ProcessChatType`).
+- **"Whisper" in player menus (added after the user asked for WIM's behaviour):** opens the
+  conversation in Sotto with the cursor in the box, without opening Blizzard's box at all.
+  `Menu.ModifyMenu` on every `MENU_UNIT_*` tag swaps only the Whisper entry's responder
+  (found by its text, `WHISPER`, also inside the Interact submenu); every other entry stays
+  Blizzard's, and the menu system keeps an addon responder from tainting its neighbours.
+  The name is Blizzard's own (`UnitPopupSharedUtil.GetFullPlayerName`). Battle.net friends
+  get their Battle.net conversation (the account id counts as Blizzard counts it: from a
+  Battle.net name link, in chat or on EllesmereUI's friends list, it arrives as text), except those WoW Forever whispers by character
+  (`C_BattleNet.GetDefaultTitleWhisperTarget`, which Blizzard's `SendBNetTell` follows):
+  they get that character's conversation, as their replies come from the character. The
+  class comes from the unit or, for a
+  name clicked in chat, from that chat line when it is theirs. Left alone with the setting
+  off, inside instances, in chat lockdown and for secret names.
 - **New conversation ("+"):** Sotto's own name field over the header ("Whisper to"); the
   spelling comes from a known conversation, the friends list or the guild, else each word
   is capitalised. Blizzard's chat box is never opened from Sotto.

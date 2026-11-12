@@ -115,7 +115,7 @@ end
 --  Filter (runs inside Blizzard's chat frames, before our handlers)
 -------------------------------------------------------------------------------
 -- An outgoing whisper sent from the chat box opens its conversation in Sotto
--- (out of combat, with "Use Sotto for replies" on); otherwise it stays in chat.
+-- (out of combat, with "Use Sotto to whisper" on); otherwise it stays in chat.
 function E.OpensOnOutgoing()
     return ns.Get("intercept") and not InCombatLockdown()
 end
@@ -159,6 +159,7 @@ local function bnConversation(bnID, who)
     end
     return ns.Store.Ensure("bn", readable(who, "string") or name, { tag = tag, bnID = bnID })
 end
+E.BNConversation = bnConversation
 
 local function enqueue(event, ...)
     local n = select("#", ...)

@@ -171,7 +171,9 @@ function St.Build(v)
 
     section(L["When you whisper"])
     C.intercept = W.Switch(content, getter("intercept"), setter("intercept"))
-    row(L["Use Sotto for replies"], L["Your reply keys open Sotto, and whispers you send from chat continue here"], C.intercept)
+    row(L["Use Sotto to whisper"],
+        L["Your reply keys and Whisper in player menus open Sotto, and whispers you send from chat continue here"],
+        C.intercept)
 
     section(L["Look"])
     C.accent = W.Segmented(content, {

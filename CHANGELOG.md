@@ -10,8 +10,9 @@ First release.
   links (links open a copy box), AFK, DND and "player not found" lines.
 - Compose box: Enter sends and splits long messages, Up and Down recall what you sent,
   drafts per conversation, shift-clicked items go in.
-- Your reply keys open Sotto (outside instances), and whispers you start from the chat box
-  or a player menu continue in Sotto. Sotto never touches the game's own chat box.
+- Your reply keys and "Whisper" in player menus open Sotto right away (outside instances),
+  and whispers you start from the chat box continue in Sotto. Sotto never touches the
+  game's own chat box.
 - Out of combat the window opens on a new whisper; in combat a notification card slides
   in instead. A soft chime, the game's whisper sound, or none.
 - Boss fights and other chat lockdowns: whispers stay in your normal chat and arrive in

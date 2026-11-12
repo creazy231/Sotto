@@ -162,3 +162,15 @@ T.it("old history is pruned at login", function()
     local G, W, ns, S = load({ db = db })
     T.eq(S.Get("aaa"), nil)
 end)
+
+T.it("a character conversation saved under a Battle.net account token is dropped on load", function()
+    local bad = { key = "|kq77|k", kind = "w", name = "|Kq77|k", unread = 0, open = true, last = 1794499000,
+        online = false, msgs = { { t = 1794499000, d = "s", m = "No player named 'Sunny' is currently playing.",
+        s = "notfound" } } }
+    local good = { key = "aaa", kind = "w", name = "Aaa", unread = 0, open = true, last = 1794499000, msgs = {} }
+    local db = { chars = { [CHAR] = { convs = { ["|kq77|k"] = bad, aaa = good } } }, bn = {} }
+    local G, W, ns, S = load({ db = db })
+    T.eq(G.SottoDB.chars[CHAR].convs["|kq77|k"], nil, "it can never be whispered")
+    T.eq(G.SottoDB.chars[CHAR].convs.aaa, good, "the others stay")
+    for _, c in ipairs(S.List()) do T.ok(c ~= bad, "not in the rail") end
+end)

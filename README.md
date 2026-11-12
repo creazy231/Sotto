@@ -20,10 +20,11 @@ options that matter.
 - **Stays out of your way.** Out of combat the window opens on a new whisper; in combat a
   small card slides in instead (or always, if you prefer). No keyboard focus is taken
   unless you ask for it. The window fades while you are not using it.
-- **Your whispers, your window.** Your reply key opens Sotto, and a whisper you start from
-  the chat box or a player menu continues there. Whispers are hidden from the normal chat
-  window. (Inside dungeons and raids the game hides whispers from addons, so there your
-  reply key stays with the normal chat.)
+- **Your whispers, your window.** Your reply key and "Whisper" in a player menu (a name in
+  chat, a unit frame, friends, guild) open Sotto right away, and a whisper you start from
+  the chat box continues there. Whispers are hidden from the normal chat window. (Inside
+  dungeons and raids the game hides whispers from addons, so there your reply key and the
+  menus stay with the normal chat.)
 - **Remembers.** Conversations survive reloads and logouts (7, 30 or 90 days, or until
   logout).
 - **Matches your UI.** With EllesmereUI it follows your panel colour, font and accent live;
@@ -47,14 +48,15 @@ Sending from Sotto pauses during that time; your draft waits.
 
 Key bindings (Options > Key Bindings > AddOns > Sotto): **Show or hide Sotto**, **Reply to
 the last whisper**, **Whisper the last person you whispered**, **Next unread
-conversation**. With "Use Sotto for replies" on, your normal reply keys do the same. The
-minimap button and the addon compartment open it too.
+conversation**. With "Use Sotto to whisper" on, your normal reply keys do the same, and
+"Whisper" in player menus opens the conversation in Sotto. The minimap button and the
+addon compartment open it too.
 
 ## Settings
 
 Open the window when a whisper arrives (always, out of combat, never) · sound (soft chime,
-the game's whisper sound, none) · hide whispers from the chat window · use Sotto for
-replies · accent (class colour or EllesmereUI) · text size · fade when idle · remember
+the game's whisper sound, none) · hide whispers from the chat window · use Sotto to
+whisper · accent (class colour or EllesmereUI) · text size · fade when idle · remember
 conversations · minimap button.
 
 ## Coming from WIM?

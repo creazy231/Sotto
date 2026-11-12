@@ -26,9 +26,11 @@ local function isOwnRealm(realm)
     return normalized ~= nil and (realm:gsub("[%s%-]", "")) == normalized
 end
 
--- -> name, realm (realm nil when absent or the player's own); nil for bad input
+-- -> name, realm (realm nil when absent or the player's own); nil for bad input,
+-- including anything with a "|" escape (a Battle.net account token, a link).
 local function split(name)
     if ns.IsSecret(name) or type(name) ~= "string" or name == "" then return nil end
+    if name:find("|", 1, true) then return nil end
     local n, r = name:match("^([^%-]+)%-(.+)$")
     if not n then return name, nil end
     if surnames() and not n:find("%s") then

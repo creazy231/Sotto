@@ -176,6 +176,19 @@ function S.Prune(days)
     ns.Fire("CONV_UPDATED")
 end
 
+-- A character conversation is keyed by a character name. One saved under
+-- anything else (a Battle.net account token, from a menu bug fixed before
+-- 1.0.0) can never be whispered: it goes when the saved data loads.
+ns.Listen("DB_READY", function()
+    for _, bucket in pairs(ns.DB.chars) do
+        if type(bucket) == "table" and type(bucket.convs) == "table" then
+            for key in pairs(bucket.convs) do
+                if not ns.Names.Key(key) then bucket.convs[key] = nil end
+            end
+        end
+    end
+end)
+
 -- Pruning happens once per real login, never on /reload or on a settings
 -- click: "Until logout" clears the previous session's history at the next
 -- login, a shorter retention takes effect at the next login.

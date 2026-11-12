@@ -807,10 +807,14 @@ function F.new(opts)
     G.C_BattleNet = {
         GetFriendAccountInfo = function(i) return W.bnFriends[i] end,
         GetAccountInfoByID = function(id)
+            id = tonumber(id) -- the C API takes "77" as 77
             for _, f in ipairs(W.bnFriends) do if f.bnetAccountID == id then return f end end
         end,
         SendWhisper = function(id, text) table.insert(W.bnSent, { id = id, text = text }) end,
-        GetDefaultTitleWhisperTarget = function() return nil end,
+        -- WoW Forever: a friend whispered by character has a target here.
+        GetDefaultTitleWhisperTarget = function(id)
+            for _, f in ipairs(W.bnFriends) do if f.bnetAccountID == id then return f.titleTarget end end
+        end,
     }
 
     -- chat ----------------------------------------------------------------------
@@ -925,6 +929,10 @@ function F.new(opts)
     end
     function CFU.SendTell(name) CFU.SendTellWithMessage(name, "") end
     function CFU.SendBNetTell(kname)
+        -- Forever whispers a title friend by character.
+        local id = kname and G.BNet_GetBNetIDAccount(kname)
+        local target = id and G.C_BattleNet.GetDefaultTitleWhisperTarget(id)
+        if target then return CFU.SendTell(target) end
         local box = CFU.ChooseBoxForSend()
         box:SetTellTarget(kname)
         box:SetChatType("BN_WHISPER")
@@ -964,6 +972,135 @@ function F.new(opts)
     function W.chat(event, ...)
         blizzardChat(event, ...)
         W.fire(event, ...)
+    end
+
+    -- Blizzard_Menu and Blizzard_UnitPopup, close to the forever branch: element
+    -- descriptions with responders, root tags, Menu.ModifyMenu, and unit popups
+    -- whose "Whisper" entry runs UnitPopupWhisperButtonMixin:OnClick.
+    G.WHISPER = "Whisper"
+    G.MenuResponse = { Open = 1, Refresh = 2, Close = 3, CloseAll = 4 }
+    local function description(text, responder)
+        local d = { text = text, responder = responder, children = {} }
+        function d:CreateButton(t, cb, data)
+            local e = description(t, cb)
+            e.data = data
+            table.insert(self.children, e)
+            return e
+        end
+        function d:CreateTitle(t) return self:CreateButton(t) end
+        function d:EnumerateElementDescriptions()
+            local i = 0
+            return function()
+                i = i + 1
+                if self.children[i] then return i, self.children[i] end
+            end
+        end
+        function d:SetTag(tag, cd) self.tag, self.contextData = tag, cd end
+        function d:SetResponder(cb) self.responder = cb end
+        function d:HasResponder() return self.responder ~= nil end
+        function d:GetData() return self.data end
+        function d:SetEnabled(v) self.enabled = v end
+        function d:IsEnabled()
+            if type(self.enabled) == "function" then return self.enabled(self) end
+            return self.enabled ~= false
+        end
+        -- A click on the entry (MenuElementDescriptionProxyMixin:Pick).
+        function d:Pick()
+            if not self:IsEnabled() or not self.responder then return false end
+            W.menuResponse = self.responder(self.data, { context = 1, buttonName = "LeftButton" }, nil)
+            return true
+        end
+        return d
+    end
+    W.menuMods = {}
+    G.Menu = {
+        ModifyMenu = function(tag, cb)
+            assert(type(tag) == "string")
+            W.menuMods[tag] = W.menuMods[tag] or {}
+            table.insert(W.menuMods[tag], cb)
+            return {}
+        end,
+    }
+    G.MenuUtil = { GetElementText = function(d) return d.text end }
+
+    G.UnitIsHumanPlayer = function(u) return G.UnitIsPlayer(u) end
+    G.UnitIsConnected = function(u)
+        local x = W.units and W.units[u]
+        return u == "player" or (x ~= nil and x.offline ~= true)
+    end
+    G.UnitPopupSharedUtil = {
+        -- Mainline/UnitPopupUtils.lua
+        GetFullPlayerName = function(cd)
+            local name, surname, unit = cd.name, cd.surname, cd.unit
+            if surname then
+                if not unit and G.GetNormalizedRealmName() ~= surname then return name .. "-" .. surname end
+                if unit and G.RegionalUniqueNamesEnabled() then return name .. " " .. surname end
+                if unit then return name .. "-" .. surname end
+            end
+            return name
+        end,
+    }
+    -- Blizzard's own Whisper click: opens the chat box on the name.
+    W.menuWhispers = {}
+    local function whisperClick(cd)
+        local isBN = cd.bnetIDAccount
+        if not isBN and cd.playerLocation then isBN = cd.playerLocation:IsBattleNetGUID() end
+        if cd.unit and not G.UnitIsHumanPlayer(cd.unit) then return end
+        local name = isBN and cd.name or G.UnitPopupSharedUtil.GetFullPlayerName(cd)
+        table.insert(W.menuWhispers, name)
+        if isSecret(name) then return end
+        if isBN then CFU.SendBNetTell(name) else CFU.SendTell(name, cd.chatFrame) end
+    end
+    local WHISPER_ENTRY = { text = function() return G.WHISPER end, click = whisperClick,
+        enabled = function(cd) return not cd.unit or (G.UnitIsConnected(cd.unit) and G.UnitIsHumanPlayer(cd.unit)) end }
+    local INVITE_ENTRY = { text = "Invite",
+        click = function(cd) W.invited = G.UnitPopupSharedUtil.GetFullPlayerName(cd) end }
+    local FOCUS_ENTRY = { text = "Set Focus", click = function(cd) W.focusUnit = cd.unit end }
+    local INTERACT = { text = "Interact", sub = { WHISPER_ENTRY, INVITE_ENTRY } } -- a submenu
+    local menus = {
+        SELF = { FOCUS_ENTRY },
+        PLAYER = { INTERACT, FOCUS_ENTRY },
+        PARTY = { INTERACT, FOCUS_ENTRY },
+        FRIEND = { WHISPER_ENTRY, INVITE_ENTRY },
+        GUILD = { WHISPER_ENTRY, INVITE_ENTRY },
+        BN_FRIEND = { WHISPER_ENTRY, INVITE_ENTRY },
+    }
+    G.UnitPopupMenus = menus
+    -- UnitPopupManager:OpenMenu
+    function G.UnitPopup_OpenMenu(which, cd)
+        cd = cd or {}
+        cd.which = which
+        if cd.unit then
+            cd.name, cd.surname = G.UnitNameUnmodified(cd.unit)
+        elseif type(cd.name) == "string" and not G.RegionalUniqueNamesEnabled() then
+            local n, s = cd.name:match("^(.-)%-(.+)$")
+            if n then cd.name, cd.surname = n, s end
+        end
+        cd.playerLocation = { IsBattleNetGUID = function() return cd.bnGUID == true end }
+        if cd.bnetIDAccount then cd.accountInfo = G.C_BattleNet.GetAccountInfoByID(cd.bnetIDAccount) end
+        local root = description()
+        root:SetTag("MENU_UNIT_" .. which, cd)
+        root:CreateTitle() -- the name is drawn by an initializer
+        local function build(parent, entries)
+            for _, e in ipairs(entries) do
+                local text = type(e.text) == "function" and e.text() or e.text
+                local d = parent:CreateButton(text, e.click and function() e.click(cd) end)
+                if e.enabled then d:SetEnabled(function() return e.enabled(cd) end) end
+                if e.sub then build(d, e.sub) end
+            end
+        end
+        build(root, menus[which] or {})
+        for _, cb in ipairs(W.menuMods["MENU_UNIT_" .. which] or {}) do cb(G.UIParent, root, cd) end
+        W.menu = root
+        return root
+    end
+    -- First entry with this text, depth first (like MenuUtil.TraverseMenu).
+    function W.menuItem(root, text)
+        for _, d in root:EnumerateElementDescriptions() do
+            if d.text == text then return d end
+            local found = W.menuItem(d, text)
+            if found then return found end
+        end
     end
 
     -- Handy builders for the 17 whisper arguments.
