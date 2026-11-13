@@ -1,7 +1,8 @@
 # Sotto
 
-Whisper messenger for WoW Forever (Interface 16001, 12.1 engine) in the EllesmereUI +
-Polestar look. Author for anything public: creazy231.
+Whisper messenger in the EllesmereUI + Polestar look, built on WoW Forever (12.1 engine),
+shipped for every client from one TOC: Retail, the Classic clients (Era, Anniversary, Mists,
+Cata, Wrath, Titan-Reforged) and Forever. Author for anything public: creazy231.
 
 - Design: `docs/design.md`; approved look: `docs/mockup/rail-chat-mockup.html` (open it in a
   browser; keep the built window pixel-close to it). Plan and progress: `docs/plan.md`,
@@ -11,8 +12,16 @@ Polestar look. Author for anything public: creazy231.
   (LuaJIT from Homebrew; `tests/fake_wow.lua` is the fake client, `tests/harness.lua` the loader).
 - Media: `python3 -I tools/make_media.py .` and `python3 -I tools/make_sound.py .` regenerate
   `Media/` (Pillow, ffmpeg).
-- Blizzard's own chat code for this client: github.com/Gethe/wow-ui-source, branch `forever`
-  (`Interface/AddOns/Blizzard_ChatFrameBase`). Check hooks against it, not against retail.
+- Blizzard's own chat code: github.com/Gethe/wow-ui-source, branch `forever`
+  (`Interface/AddOns/Blizzard_ChatFrameBase`), and for the other clients `live`, `classic`,
+  `classic_era`, `classic_anniversary`, `classic_titan`. All of them share ChatFrameUtil,
+  the chat filters, Blizzard_Menu and UnitPopupShared (2026-11-13); check a new hook against
+  every branch. Forever-only: surnames (`RegionalUniqueNamesEnabled`) and title friends
+  (`C_BattleNet.GetDefaultTitleWhisperTarget`); elsewhere names are "Name-Realm".
+  `tests/test_flavors.lua` plays a Retail/Classic client.
+- Client patches: `## Interface` in `Sotto.toc` lists one number per client (current values:
+  warcraft.wiki.gg/wiki/TOC_format). Retail loads only an exact match, so a patched client
+  needs its new number there (and in `tests/test_load.lua`'s INTERFACES) and a release.
 - Rules that keep Sotto taint-free:
   - every chat value goes through `ns.IsSecret` before it is compared, indexed, measured or stored;
   - never touch Blizzard's chat edit box (not even out of combat: closing it from addon code

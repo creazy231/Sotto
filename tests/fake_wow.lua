@@ -933,9 +933,10 @@ function F.new(opts)
     end
     function CFU.SendTell(name) CFU.SendTellWithMessage(name, "") end
     function CFU.SendBNetTell(kname)
-        -- Forever whispers a title friend by character.
+        -- Forever whispers a title friend by character (other clients lack the call).
         local id = kname and G.BNet_GetBNetIDAccount(kname)
-        local target = id and G.C_BattleNet.GetDefaultTitleWhisperTarget(id)
+        local title = G.C_BattleNet.GetDefaultTitleWhisperTarget
+        local target = id and title and title(id)
         if target then return CFU.SendTell(target) end
         local box = CFU.ChooseBoxForSend()
         box:SetTellTarget(kname)

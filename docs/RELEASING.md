@@ -28,7 +28,7 @@ Add this line to `Sotto.toc` (under `## Author`) and commit it:
 
 ### 3. Give GitHub an upload token
 
-1. CurseForge: https://authors.curseforge.com/account/api-tokens → create a token.
+1. CurseForge: https://authors.curseforge.com/#/settings/api-tokens → create a token.
 2. GitHub: repository **Settings → Secrets and variables → Actions → New repository
    secret**, name `CF_API_KEY`, value the token.
 
@@ -55,6 +55,15 @@ Upload `listing/screenshots/01…06` to the project's gallery with the captions 
    `## Version: @project-version@` in the TOC becomes the tag.
 3. Watch the run under the repository's **Actions** tab. It fails before uploading if a
    test fails.
+
+## When a game version is patched
+
+`## Interface` in `Sotto.toc` lists one number per client (Retail, the Classic clients,
+WoW Forever). A client whose number is missing marks Sotto out of date, and Retail does not
+load it at all. After a patch, add the client's new number (current values:
+https://warcraft.wiki.gg/wiki/TOC_format, or `/dump select(4, GetBuildInfo())` in that
+client), keep `tests/test_load.lua`'s `INTERFACES` list in step, note it in `CHANGELOG.md`
+and release a new version.
 
 ## Notes
 

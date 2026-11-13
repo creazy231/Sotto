@@ -2,6 +2,9 @@
 # icons cropped from WIM. Kept locally, never committed.
 docs/mockup/
 
+# Personal publishing checklist (local only)
+PUBLISHING.md
+
 # Packager output and local builds
 .release/
 *.zip

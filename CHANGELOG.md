@@ -28,3 +28,5 @@ First release.
 - What another addon hides from the chat window (a spam filter, for example) stays out of
   Sotto too; reporting a player removes their whispers, as the chat window does.
 - Offers to turn off WIM so whispers do not arrive twice.
+- One download for Retail, every Classic version (Classic Era, Anniversary, Mists of
+  Pandaria, Cataclysm, Wrath, Titan-Reforged) and WoW Forever.

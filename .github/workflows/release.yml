@@ -1,6 +1,7 @@
 # Packages Sotto and uploads it when a version tag is pushed (e.g. 1.0.0,
-# 1.1.0-beta1). Uses the BigWigs packager, which reads the TOC's Interface
-# (16001 = WoW Forever) and uploads to every site whose project id is in the
+# 1.1.0-beta1). Uses the BigWigs packager, which reads the TOC's Interface list
+# (one number per client: Retail, the Classic clients, WoW Forever), tags the
+# file with each of those game versions and uploads to every site whose project id is in the
 # TOC and whose token is set as a repository secret:
 #   CurseForge   ## X-Curse-Project-ID  + secret CF_API_KEY
 #   Wago         ## X-Wago-ID           + secret WAGO_API_TOKEN

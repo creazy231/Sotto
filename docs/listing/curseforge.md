@@ -6,13 +6,15 @@ Everything to paste into the CurseForge project form (authors.curseforge.com).
 
 - **Project name:** Sotto
 - **Game / class:** World of Warcraft · Addons
-- **Game version:** WoW Forever (the packager sets it on every upload from `## Interface: 16001`)
+- **Game versions:** Retail, Classic Era, Anniversary (TBC), Mists of Pandaria Classic,
+  Cataclysm, Wrath, Titan-Reforged and WoW Forever (the packager sets them on every upload
+  from the `## Interface` list in `Sotto.toc`)
 - **Primary category:** Chat & Communication
 - **License:** MIT License
 - **Avatar:** `docs/listing/icon-400.png` (square; `icon.png` is the 1024 px original)
-- **Summary** (130 characters):
+- **Summary** (138 characters):
 
-  > Whispers in a calm messenger window: conversations, unread badges and notifications, drawn in the EllesmereUI look. For WoW Forever.
+  > Whispers in a calm messenger window: conversations, unread badges and notifications, in the EllesmereUI look. Retail, Classic and Forever.
 
 ## Screenshots (gallery, in this order, with these captions)
 
@@ -32,7 +34,7 @@ from the addon's real UI (copy and layout in its `SHOTS` list, render dir as in 
 ![Sotto](HERO_IMAGE_URL)
 
 **Whispers in a calm messenger window, drawn in the EllesmereUI look.**
-A whisper messenger for World of Warcraft: Forever, in the spirit of WIM, with only the options that matter.
+A whisper messenger for World of Warcraft, in the spirit of WIM, with only the options that matter. One download for Retail, every Classic version and WoW Forever.
 
 ## Features
 
@@ -43,10 +45,11 @@ A whisper messenger for World of Warcraft: Forever, in the spirit of WIM, with o
 - **Your whispers, your window.** Your reply key and "Whisper" in a player menu open Sotto right away, and a whisper you start from the chat box continues there. Whispers are hidden from the normal chat window.
 - **Remembers.** Conversations survive reloads and logouts (7, 30 or 90 days, or until logout).
 - **Matches your UI.** With EllesmereUI it follows your panel colour, font and accent live; the accent can also be your class colour. Works without EllesmereUI too.
+- **Every game version.** Retail, Classic Era, Anniversary, Mists of Pandaria Classic, Cataclysm, Wrath, Titan-Reforged and WoW Forever.
 
 ## Boss fights
 
-The 12.x engine hides whisper contents from addons during boss encounters, Mythic+ and rated PvP. Sotto tells you so: those whispers stay in your normal chat and arrive in Sotto when the fight ends. Sending pauses meanwhile; your draft waits.
+During boss encounters, Mythic+ and rated PvP the game can hide whisper contents from addons. Sotto tells you so: those whispers stay in your normal chat and arrive in Sotto when the fight ends. Sending pauses meanwhile; your draft waits.
 
 ## Commands
 

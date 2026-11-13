@@ -3,8 +3,9 @@
 ![Sotto](docs/listing/screenshots/hero.png)
 
 **Whispers in a calm messenger window, drawn in the EllesmereUI look.**
-A whisper messenger for World of Warcraft: Forever, in the spirit of WIM, with only the
-options that matter.
+A whisper messenger for World of Warcraft, in the spirit of WIM, with only the options that
+matter. One download for Retail, every Classic version (Classic Era, Anniversary, Mists of
+Pandaria, Cataclysm, Wrath, Titan-Reforged) and WoW Forever.
 
 ## What it does
 
@@ -33,8 +34,8 @@ options that matter.
 
 ## Boss fights and other lockdowns
 
-Since the 12.x engine the game hides whisper contents from addons during boss
-encounters, Mythic+ and rated PvP (and on some restricted maps). Sotto shows a notice
+During boss encounters, Mythic+ and rated PvP (and on some restricted maps) the game can
+hide whisper contents from addons. Sotto shows a notice
 then: those whispers stay in your normal chat and land in Sotto when the lockdown ends.
 Sending from Sotto pauses during that time; your draft waits.
 
@@ -67,7 +68,7 @@ for a reload), so whispers do not arrive twice.
 ## Development
 
 The addon is plain Lua with no libraries. An offline suite runs it inside a fake WoW
-Forever client:
+client (WoW Forever by default; `tests/test_flavors.lua` plays a Retail or Classic client):
 
 ```sh
 luajit tests/run.lua && luajit tests/syntax.lua
@@ -75,7 +76,9 @@ python3 -I tests/test_media.py   # needs Pillow
 ```
 
 Media is generated: `python3 -I tools/make_media.py .` and `python3 -I tools/make_sound.py .`
-(needs Pillow and ffmpeg). Releases: see [docs/RELEASING.md](docs/RELEASING.md).
+(needs Pillow and ffmpeg). Releases: see [docs/RELEASING.md](docs/RELEASING.md). When a
+game version is patched, its new interface number goes into `## Interface` in `Sotto.toc`
+(Retail loads only an exact match).
 
 ## License
 

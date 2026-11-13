@@ -55,7 +55,23 @@ built window must stay pixel-close to the approved mockup
 
 ## Constraints
 
-- WoW Forever (game type camelot), Interface 16001, 12.1 engine, Lua 5.1.
+- Built on WoW Forever (game type camelot, 12.1 engine), Lua 5.1. Since 2026-11-13 one TOC
+  loads on every client: `## Interface: 120105, 120107, 50504, 40402, 38002, 30405, 20506,
+  16001, 11509` (Retail 12.1.5 and its 12.1.7 test realm, Mists, Cataclysm, Titan-Reforged,
+  Wrath, TBC Anniversary, Forever, Classic Era; warcraft.wiki.gg/wiki/TOC_format). Retail
+  loads only an exact match: every client patch needs its new number and a release.
+- Other clients, checked against wow-ui-source (branches `live` 12.1.5, `classic` 5.5.4,
+  `classic_anniversary` 2.5.6, `classic_era` 1.15.9, `classic_titan` 3.80.2, `forever`
+  1.60.1; 2026-11-13): all run the same Blizzard_ChatFrameBase (ChatFrameUtil, the filter
+  registry with `ProcessMessageEventFilters`, filters before `SetLastTellTarget`),
+  Blizzard_Menu (`Menu.ModifyMenu`, `MenuUtil.GetElementText`), UnitPopupShared
+  (`UnitPopupMenus`, `GetFullPlayerName`, `MENU_UNIT_*` tags), C_ChatInfo (lockdown and
+  chat-line APIs), C_BattleNet and every event Sotto registers. Forever-only: surnames
+  (`RegionalUniqueNamesEnabled`; elsewhere names are "Name-Realm", which `Names` handles)
+  and title friends (`C_BattleNet.GetDefaultTitleWhisperTarget`, already optional). The
+  addon compartment exists on Retail and Forever only (the TOC fields are ignored
+  elsewhere); class icons fall back from the `classicon-*` atlases to the class sheet.
+  So no code path changes per client; `tests/test_flavors.lua` plays a Retail/Classic client.
 - Secret values: during chat messaging lockdown (encounters, Mythic+, PvP and
   communication-restricted maps) whisper text and senders are secret. Blizzard only calls
   message filters when every argument is accessible (`ChatFrameFilters.lua`, `canaccessvalue`).
