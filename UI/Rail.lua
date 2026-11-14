@@ -2,6 +2,8 @@
 --  Sotto: the rail. The mark on top, one badge per open conversation (newest
 --  first): a 28 px class icon, or Battle.net initials, with an unread pill;
 --  the active one carries the accent bar; offline contacts are greyed out.
+--  A click opens a badge's conversation, the right button its menu, and
+--  shift-click or the middle button closes it.
 --  "+" (new conversation) and the gear sit at the bottom.
 -------------------------------------------------------------------------------
 local _, ns = ...
@@ -110,7 +112,7 @@ local function newBadge()
         if not self.conv then return end
         if button == "RightButton" then
             convMenu(self)
-        elseif button == "MiddleButton" then
+        elseif button == "MiddleButton" or IsShiftKeyDown() then
             ns.Store.Close(self.conv)
         else
             ns.UI.Open(self.conv)

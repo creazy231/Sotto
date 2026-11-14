@@ -236,3 +236,135 @@ T.it("in the gamepad interface Whisper in a player menu is the game's own", func
     T.no(UI.IsShown(), "Sotto stays closed")
     T.eq(#W.menuWhispers, 1, "Blizzard's whisper ran: its chat box, made for the controller")
 end)
+
+-------------------------------------------------------------------------------
+--  The group finder: its whisper entries open Sotto the same way
+-------------------------------------------------------------------------------
+local function listing(G, W)
+    W.lfgResults[7] = { leaderName = "Tarin-Ashgrove", name = "Deadmines, then Wailing Caverns" }
+    W.lfgApplicants[3] = { "Kaela-Dawnmere", "Ayla-Brightwind" }
+end
+
+-- The group finder's three menus with a whisper entry: the browser's listing (WoW Forever and the Classic
+-- clients), a premade group's listing and an applicant to the player's group (Retail and the Classic clients).
+local function lfgMenus(W)
+    return {
+        { "the browser", function() return W.loadGroupBrowser():CreateSearchEntryMenu({ resultID = 7 }) end,
+            "Send Message" },
+        { "a premade group", function() return W.premadeEntryMenu(7) end, "Whisper Leader" },
+        { "an applicant", function() return W.applicantMenu(3, 1) end, "Whisper" },
+    }
+end
+
+T.it("Send Message on a listing in the group browser opens Sotto on its leader, ready to type", function()
+    local G, W, ns, UI = load(listing)
+    local menu = W.loadGroupBrowser():CreateSearchEntryMenu({ resultID = 7 }) -- it loads on demand, after login
+    W.menuItem(menu, "Send Message"):Pick()
+    T.ok(UI.IsShown(), "Sotto opens")
+    T.eq(UI.Active().key, "tarin ashgrove")
+    T.eq(UI.Active().name, "Tarin Ashgrove")
+    T.eq(W.focus, ns.Compose.box, "ready to type")
+    T.no(box(G):IsShown(), "Blizzard's chat box stays closed")
+    T.eq(#W.lfgWhispers, 0, "Blizzard's whisper did not run")
+end)
+
+T.it("a group browser loaded before Sotto works the same", function()
+    local G, W, ns, UI = load(function(G, W)
+        listing(G, W)
+        W.loadGroupBrowser()
+    end)
+    W.menuItem(G.LFGBrowseFrame:CreateSearchEntryMenu({ resultID = 7 }), "Send Message"):Pick()
+    T.eq(UI.Active().key, "tarin ashgrove")
+    T.eq(#W.lfgWhispers, 0)
+end)
+
+T.it("the group browser's other entries stay Blizzard's", function()
+    local G, W, ns, UI = load(listing)
+    local menu = W.loadGroupBrowser():CreateSearchEntryMenu({ resultID = 7 })
+    W.menuItem(menu, "Request to Join"):Pick()
+    T.eq(W.lfgRequested, 7, "Blizzard's request to join")
+    T.no(UI.IsShown(), "Sotto stays closed")
+end)
+
+T.it("Whisper Leader on a premade group opens Sotto on its leader, not on the group's title", function()
+    local G, W, ns, UI = load(listing)
+    W.menuItem(W.premadeEntryMenu(7), "Whisper Leader"):Pick()
+    T.eq(UI.Active().key, "tarin ashgrove")
+    T.eq(W.focus, ns.Compose.box, "ready to type")
+    T.no(box(G):IsShown(), "Blizzard's chat box stays closed")
+    T.eq(#W.lfgWhispers, 0)
+end)
+
+T.it("Whisper on an applicant to your group opens Sotto on that applicant", function()
+    local G, W, ns, UI = load(listing)
+    W.menuItem(W.applicantMenu(3, 2), "Whisper"):Pick()
+    T.eq(UI.Active().key, "ayla brightwind")
+    T.no(box(G):IsShown())
+    T.eq(#W.lfgWhispers, 0)
+end)
+
+T.it("when Sotto cannot carry the conversation, the group finder's whisper stays Blizzard's", function()
+    local cases = {
+        { "\"Use Sotto to whisper\" off", nil, function(G, W, ns) ns.Set("intercept", false) end },
+        { "inside an instance", nil, function(G, W) W.instance = true end },
+        { "in chat lockdown", nil, function(G, W) W.lockdown = true end },
+        { "in the gamepad interface", function(G, W) W.interfaceStyle = 1 end },
+    }
+    for _, case in ipairs(cases) do
+        local G, W, ns, UI = load(function(G, W)
+            listing(G, W)
+            if case[2] then case[2](G, W) end
+        end)
+        if case[3] then case[3](G, W, ns) end
+        for _, m in ipairs(lfgMenus(W)) do
+            local before = #W.lfgWhispers
+            W.menuItem(m[2](), m[3]):Pick()
+            T.eq(#W.lfgWhispers, before + 1, case[1] .. ", " .. m[1] .. ": Blizzard's whisper ran")
+            T.no(UI.IsShown(), case[1] .. ", " .. m[1] .. ": Sotto stays closed")
+        end
+    end
+end)
+
+T.it("a name the client keeps secret stays Blizzard's in the group finder too", function()
+    local G, W, ns, UI = load(function(G, W)
+        W.lfgResults[7] = { leaderName = T.secret("Tarin-Ashgrove"), name = "Deadmines" }
+        W.lfgApplicants[3] = { T.secret("Kaela-Dawnmere") }
+    end)
+    for _, m in ipairs(lfgMenus(W)) do
+        W.menuItem(m[2](), m[3]):Pick()
+        T.no(UI.IsShown(), m[1])
+    end
+    T.eq(#W.lfgWhispers, 3, "Blizzard's whisper ran each time")
+end)
+
+T.it("a listing without a leader's name is left as it is", function()
+    local G, W, ns, UI = load(function(G, W) W.lfgResults[7] = { name = "Deadmines" } end)
+    local menu = W.loadGroupBrowser():CreateSearchEntryMenu({ resultID = 7 })
+    T.no(W.menuItem(menu, "Send Message"):Pick(), "Blizzard's entry, greyed out")
+    T.no(UI.IsShown())
+end)
+
+T.it("a listing whose menu is not built in the call leaves the last menu built as it was", function()
+    local G, W, ns, UI = load(listing)
+    local other = G.MenuUtil.CreateContextMenu(nil, function(owner, root)
+        root:CreateTitle("Kaela-Dawnmere")
+        root:CreateButton(G.SEND_MESSAGE, function() W.otherSent = true end)
+    end)
+    W.lfgMenuLater = true
+    W.loadGroupBrowser():CreateSearchEntryMenu({ resultID = 7 })
+    W.menuItem(other, "Send Message"):Pick()
+    T.ok(W.otherSent, "its own responder ran")
+    T.no(UI.IsShown(), "Sotto stays closed")
+end)
+
+T.it("another window's menu with a Send Message entry is left alone", function()
+    local G, W, ns, UI = load(listing)
+    W.loadGroupBrowser()
+    local menu = G.MenuUtil.CreateContextMenu(G.UIParent, function(owner, root)
+        root:CreateTitle("Tarin-Ashgrove")
+        root:CreateButton(G.SEND_MESSAGE, function() W.otherSent = true end)
+    end)
+    W.menuItem(menu, "Send Message"):Pick()
+    T.ok(W.otherSent, "its own responder ran")
+    T.no(UI.IsShown(), "Sotto stays closed")
+end)

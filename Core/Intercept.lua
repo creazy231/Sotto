@@ -15,9 +15,17 @@
 --    so Blizzard's chat box never opens, and every other entry stays
 --    Blizzard's (the menu system keeps an addon's responder from tainting its
 --    neighbours). In chat lockdown, and for names the client keeps secret,
---    the entry is left alone.
+--    the entry is left alone;
+--  - so do the group finder's whisper entries: "Whisper Leader" on a premade
+--    group and "Whisper" on an applicant (tagged menus: Menu.ModifyMenu), and
+--    "Send Message" on a listing in the Classic-style browser, WoW Forever's.
+--    That menu has neither a tag nor an owner of its own: a post-hook on the
+--    browser's CreateSearchEntryMenu takes the menu that call built (kept by a
+--    post-hook on Menu.PopulateDescription) when its title is the leader.
 --
---  /w stays with Blizzard's chat box; the whisper then opens its conversation
+--  /w stays with Blizzard's chat box, and so do buttons that whisper (the
+--  friends list's Send Message, a name clicked in chat): Blizzard's code opens
+--  the box before an addon's can run. The whisper then opens its conversation
 --  in Sotto (Engine: OUTGOING). A typed /r would use Blizzard's reply target,
 --  which goes stale because Sotto hides whispers from the chat window; a
 --  read-only post-hook prints a notice in that case.
@@ -186,26 +194,111 @@ local function openFor(target)
     ns.UI.Open(conv, { focus = true })
 end
 
-local function isWhisper(desc)
-    local text = MenuUtil.GetElementText(desc)
-    return not ns.IsSecret(text) and text == WHISPER
-end
-
-local function findWhisper(desc)
+-- The menu's first entry with this text, depth first (the Interact submenu too).
+local function findEntry(desc, text)
     for _, child in desc:EnumerateElementDescriptions() do
-        if isWhisper(child) then return child end
-        local found = findWhisper(child)
+        local t = MenuUtil.GetElementText(child)
+        if not ns.IsSecret(t) and t == text then return child end
+        local found = findEntry(child, text)
         if found then return found end
     end
 end
 
 local function onMenu(_, root, contextData)
     if not intercepting() or ns.InLockdown() then return end
-    local item = findWhisper(root)
+    local item = findEntry(root, WHISPER)
     if not item then return end
     local target = menuTarget(contextData)
     if not target then return end
     item:SetResponder(function() openFor(target) end)
+end
+
+-------------------------------------------------------------------------------
+--  The group finder's whisper entries open Sotto too
+-------------------------------------------------------------------------------
+-- The name, when Sotto can carry a conversation with it now; nil otherwise,
+-- and the menu's entry stays Blizzard's.
+local function carried(name)
+    if not intercepting() or ns.InLockdown() then return nil end
+    name = readable(name, "string")
+    if not name or not ns.Names.Key(name) then return nil end
+    return name
+end
+
+-- Points the menu's entry with this text at the conversation with `name`.
+local function whisperIn(root, text, name)
+    name = carried(name)
+    local item = name and findEntry(root, text)
+    if item then item:SetResponder(function() openFor({ name = name }) end) end
+end
+
+local function lfg(fn, ...)
+    local api = C_LFGList and C_LFGList[fn]
+    if type(api) ~= "function" then return nil end
+    local ok, v = pcall(api, ...)
+    if ok then return v end
+end
+
+-- A premade group's listing: its title is the group's name, its "Whisper
+-- Leader" whispers the leader.
+local function listingLeader(owner)
+    local id = type(owner) == "table" and readable(owner.resultID, "number")
+    local info = id and lfg("GetSearchResultInfo", id)
+    return type(info) == "table" and info.leaderName or nil
+end
+
+-- One member of an applicant to the player's group.
+local function applicantMember(owner)
+    if type(owner) ~= "table" or type(owner.GetParent) ~= "function" then return nil end
+    local applicant = owner:GetParent()
+    local id = type(applicant) == "table" and readable(applicant.applicantID, "number")
+    local index = readable(owner.memberIdx, "number")
+    return id and index and lfg("GetApplicantMemberInfo", id, index) or nil
+end
+
+-- The premade groups (Blizzard_GroupFinder: Retail and the Classic clients)
+-- tag their menus, so Menu.ModifyMenu reaches them.
+local LFG_MENUS = {
+    MENU_LFG_FRAME_SEARCH_ENTRY = function(owner, root) whisperIn(root, WHISPER_LEADER, listingLeader(owner)) end,
+    MENU_LFG_FRAME_MEMBER_APPLY = function(owner, root) whisperIn(root, WHISPER, applicantMember(owner)) end,
+}
+
+-- The Classic-style browser (Blizzard_GroupFinder_VanillaStyle: WoW Forever,
+-- the Classic clients) builds a listing's menu without a tag, which
+-- Menu.ModifyMenu needs, and without an owner of its own. A right-click on a
+-- listing runs LFGBrowseFrame:CreateSearchEntryMenu(entry), and the menu it
+-- builds passes Menu.PopulateDescription, as every menu does (that is where the
+-- ModifyMenu callbacks run). A post-hook there keeps the last menu built; the
+-- post-hook on CreateSearchEntryMenu takes it if its title is the listing's
+-- leader, the way Blizzard titles that menu, and points its "Send Message" at
+-- Sotto.
+local lastBuilt
+local function rememberMenu(_, _, root) lastBuilt = root end
+
+local function onListingMenu(_, entry)
+    local root = lastBuilt
+    lastBuilt = nil
+    local name = carried(listingLeader(entry))
+    if not (name and root) then return end
+    local title
+    for _, child in root:EnumerateElementDescriptions() do
+        title = MenuUtil.GetElementText(child)
+        break
+    end
+    if ns.IsSecret(title) or title ~= name then return end
+    local item = findEntry(root, SEND_MESSAGE)
+    if item then item:SetResponder(function() openFor({ name = name }) end) end
+end
+
+-- The browser loads on demand: hooked when it arrives, or at login if it came
+-- first.
+local browserHooked = false
+local function hookBrowser()
+    local browser = LFGBrowseFrame
+    if browserHooked or type(browser) ~= "table" or type(browser.CreateSearchEntryMenu) ~= "function" then return end
+    if not (MenuUtil and MenuUtil.GetElementText) then return end
+    browserHooked = true
+    hooksecurefunc(browser, "CreateSearchEntryMenu", onListingMenu)
 end
 
 -- The forever branch's menus with a Whisper entry, should Blizzard's list of
@@ -223,12 +316,18 @@ function I.HookMenus()
     end
     if #tags == 0 then tags = WHISPER_MENUS end
     for _, which in ipairs(tags) do Menu.ModifyMenu("MENU_UNIT_" .. which, onMenu) end
+    for tag, onListing in pairs(LFG_MENUS) do Menu.ModifyMenu(tag, onListing) end
+    if type(Menu.PopulateDescription) == "function" then hooksecurefunc(Menu, "PopulateDescription", rememberMenu) end
+    hookBrowser()
 end
 
 -------------------------------------------------------------------------------
 --  Wiring
 -------------------------------------------------------------------------------
 ns.On("PLAYER_LOGIN", function() I.Init() end)
+ns.On("ADDON_LOADED", function(_, name)
+    if name == "Blizzard_GroupFinder_VanillaStyle" then hookBrowser() end
+end)
 for _, ev in ipairs({ "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "UPDATE_BINDINGS", "PLAYER_REGEN_ENABLED" }) do
     ns.On(ev, function() I.Apply() end)
 end

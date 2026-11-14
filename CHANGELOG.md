@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.0 (unreleased)
+
+- The group finder's whisper entries now open Sotto right away, as "Whisper" in a player
+  menu does, instead of the chat box first: "Send Message" on a listing in the group
+  browser (WoW Forever and the Classic clients), "Whisper Leader" on a premade group and
+  "Whisper" on someone who applied to your group.
+- Shift-click a conversation in the rail to close it (the middle mouse button still does
+  too).
+
 ## 1.2.0
 
 - Scale in the settings (Look): 50 to 200 %, for the window, its menus, the notifications

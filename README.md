@@ -11,7 +11,8 @@ Pandaria, Cataclysm, Wrath, Titan-Reforged) and WoW Forever.
 
 - **One window for every whisper.** Character whispers and Battle.net whispers, incoming
   and outgoing. A slim rail on the left holds one badge per conversation: class icon,
-  unread count, offline contacts greyed out.
+  unread count, offline contacts greyed out. Shift-click a badge to close its
+  conversation.
 - **Reads like a messenger.** Name and time once per run of messages, day separators, a
   "New" line above what you have not read yet, clickable items, quests and links
   (links open a copy box).
@@ -21,9 +22,9 @@ Pandaria, Cataclysm, Wrath, Titan-Reforged) and WoW Forever.
 - **Stays out of your way.** Out of combat the window opens on a new whisper; in combat a
   small card slides in instead (or always, if you prefer). No keyboard focus is taken
   unless you ask for it. The window fades while you are not using it.
-- **Your whispers, your window.** Your reply key and "Whisper" in a player menu (a name in
-  chat, a unit frame, friends, guild) open Sotto right away, and a whisper you start from
-  the chat box continues there. Whispers are hidden from the normal chat window. (Inside
+- **Your whispers, your window.** Your reply key, "Whisper" in a player menu (a name in
+  chat, a unit frame, friends, guild) and the group finder's "Send Message" or "Whisper
+  Leader" open Sotto right away, and a whisper you start from the chat box continues there. Whispers are hidden from the normal chat window. (Inside
   dungeons and raids the game hides whispers from addons, so there your reply key and the
   menus stay with the normal chat.)
 - **Remembers.** Conversations survive reloads and logouts (7, 30 or 90 days, or until
@@ -58,7 +59,7 @@ on mouse and keyboard. You can still open it by hand.
 Key bindings (Options > Key Bindings > AddOns > Sotto): **Show or hide Sotto**, **Reply to
 the last whisper**, **Whisper the last person you whispered**, **Next unread
 conversation**. With "Use Sotto to whisper" on, your normal reply keys do the same, and
-"Whisper" in player menus opens the conversation in Sotto. The minimap button and the
+"Whisper" in player menus and in the group finder opens the conversation in Sotto. The minimap button and the
 addon compartment open it too.
 
 ## Settings

@@ -18,7 +18,9 @@ built window must stay pixel-close to the approved mockup
 - **Rail + chat layout** (picked by the user from three sketches):
   - a 46 px rail on the left: the mark on top, one 28 px badge per conversation (class
     icon, Battle.net initials), unread count pill, accent bar on the active one, offline
-    contacts greyed out, "+" (new conversation) and the gear at the bottom;
+    contacts greyed out, "+" (new conversation) and the gear at the bottom; a click opens a
+    badge's conversation, the right button its menu, shift-click or the middle button
+    closes it (shift-click added at the user's request, 2026-11-14);
   - the chat column: a header (online dot, name in class colour, "level · race class ·
     zone", invite, "…" menu, close), the message log, the compose box.
 - Grouped message log: name and time once per run of messages, day separators, a "New"
@@ -147,6 +149,29 @@ reskinning WIM further (keeps WIM's options and complexity) or forking WIM (huge
   class comes from the unit or, for a
   name clicked in chat, from that chat line when it is theirs. Left alone with the setting
   off, inside instances, in chat lockdown and for secret names.
+- **The group finder's whisper entries (added 2026-11-14, after the user found that a whisper
+  from the group finder opened Blizzard's box first):** open Sotto the same way, under the
+  same conditions. The premade groups (Blizzard_GroupFinder: Retail and the Classic
+  clients) tag their menus, so `Menu.ModifyMenu` reaches them: `MENU_LFG_FRAME_SEARCH_ENTRY`
+  ("Whisper Leader"; the title is the group's name, the leader comes from
+  `C_LFGList.GetSearchResultInfo(owner.resultID)`) and `MENU_LFG_FRAME_MEMBER_APPLY`
+  ("Whisper"; `C_LFGList.GetApplicantMemberInfo(owner:GetParent().applicantID,
+  owner.memberIdx)`). The Classic-style browser (Blizzard_GroupFinder_VanillaStyle, WoW
+  Forever's and the Classic clients'; it loads on demand) builds a listing's menu without a
+  tag and without an owner of its own: it names `LFGBrowseFrame.SearchEntryDropDown`, which
+  no branch has any more, so the menu belongs to the top-level parent. A right-click on a
+  listing runs `LFGBrowseFrame:CreateSearchEntryMenu(entry)`; the menu it builds passes
+  `Menu.PopulateDescription`, as every menu does (that is where the ModifyMenu callbacks
+  run). A `hooksecurefunc` post-hook there keeps the last menu built, and one on
+  `CreateSearchEntryMenu` (hooked when the browser loads, or at login if it came first)
+  takes it when its title is the listing's leader (`C_LFGList.GetSearchResultInfo(
+  entry.resultID).leaderName`, the name Blizzard titles it with and its "Send Message"
+  whispers). The open menu's own proxy is no use here: only live and forever give it
+  `EnumerateElementDescriptions`. Blizzard's menu calls every responder through
+  `securecallfunction`, so this one is as isolated as a ModifyMenu one. Buttons that whisper
+  (the browser's and the friends list's Send Message, a name left-clicked in chat) stay
+  Blizzard's: its code opens the chat box before an addon's can run, and closing the box
+  from addon code is the taint above.
 - **New conversation ("+"):** Sotto's own name field over the header ("Whisper to"); the
   spelling comes from a known conversation, the friends list or the guild, else each word
   is capitalised. Blizzard's chat box is never opened from Sotto.

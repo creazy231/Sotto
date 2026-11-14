@@ -1041,8 +1041,27 @@ function F.new(opts)
             table.insert(W.menuMods[tag], cb)
             return {}
         end,
+        -- Every menu passes through here: its generator, then the ModifyMenu
+        -- callbacks of its tag, if it has one.
+        PopulateDescription = function(generator, owner, root, ...)
+            generator(owner, root, ...)
+            if root.tag then
+                for _, cb in ipairs(W.menuMods[root.tag] or {}) do cb(owner, root, root.contextData) end
+            end
+        end,
     }
-    G.MenuUtil = { GetElementText = function(d) return d.text end }
+    G.MenuUtil = {
+        GetElementText = function(d) return d.text end,
+        -- The menu at the cursor; here its root description is returned (and kept as
+        -- W.menu). Without an owner it belongs to the top-level parent, UIParent.
+        CreateContextMenu = function(owner, generator, ...)
+            owner = owner or G.UIParent
+            local root = description()
+            G.Menu.PopulateDescription(generator, owner, root, ...)
+            W.menu = root
+            return root
+        end,
+    }
 
     G.UnitIsHumanPlayer = function(u) return G.UnitIsPlayer(u) end
     G.UnitIsConnected = function(u)
@@ -1099,9 +1118,6 @@ function F.new(opts)
         end
         cd.playerLocation = { IsBattleNetGUID = function() return cd.bnGUID == true end }
         if cd.bnetIDAccount then cd.accountInfo = G.C_BattleNet.GetAccountInfoByID(cd.bnetIDAccount) end
-        local root = description()
-        root:SetTag("MENU_UNIT_" .. which, cd)
-        root:CreateTitle() -- the name is drawn by an initializer
         local function build(parent, entries)
             for _, e in ipairs(entries) do
                 local text = type(e.text) == "function" and e.text() or e.text
@@ -1110,10 +1126,80 @@ function F.new(opts)
                 if e.sub then build(d, e.sub) end
             end
         end
-        build(root, menus[which] or {})
-        for _, cb in ipairs(W.menuMods["MENU_UNIT_" .. which] or {}) do cb(G.UIParent, root, cd) end
-        W.menu = root
-        return root
+        return G.MenuUtil.CreateContextMenu(G.UIParent, function(owner, root)
+            root:SetTag("MENU_UNIT_" .. which, cd)
+            root:CreateTitle() -- the name is drawn by an initializer
+            build(root, menus[which] or {})
+        end)
+    end
+
+    -- The group finder, as in the forever branch and the others. Blizzard_GroupFinder's
+    -- premade groups (Retail, the Classic clients) tag their menus; the browser of
+    -- Blizzard_GroupFinder_VanillaStyle (WoW Forever, the Classic clients) loads on
+    -- demand and builds its listings' menu without a tag. Every whisper entry runs
+    -- ChatFrameUtil.SendTell; W.lfgWhispers lists whom Blizzard's entries whispered.
+    G.SEND_MESSAGE = "Send Message"
+    G.WHISPER_LEADER = "Whisper Leader"
+    W.lfgResults, W.lfgApplicants, W.lfgWhispers = {}, {}, {}
+    G.C_LFGList = {
+        GetSearchResultInfo = function(id) return W.lfgResults[id] end,
+        GetApplicantMemberInfo = function(applicantID, memberIdx)
+            local names = W.lfgApplicants[applicantID]
+            return names and names[memberIdx]
+        end,
+    }
+    local function lfgTell(name)
+        table.insert(W.lfgWhispers, name)
+        if not isSecret(name) then CFU.SendTell(name) end
+    end
+    -- LFGListSearchEntry_CreateContextMenu(self): the listing's row owns the menu,
+    -- whose title is the group's name.
+    function W.premadeEntryMenu(resultID)
+        local entry = G.CreateFrame("Button", nil, G.UIParent)
+        entry.resultID = resultID
+        return G.MenuUtil.CreateContextMenu(entry, function(owner, root)
+            root:SetTag("MENU_LFG_FRAME_SEARCH_ENTRY")
+            local info = G.C_LFGList.GetSearchResultInfo(entry.resultID)
+            root:CreateTitle(info.name)
+            root:CreateButton(G.WHISPER_LEADER, function() lfgTell(info.leaderName) end)
+            root:CreateButton("Report Group", function() W.lfgReported = entry.resultID end)
+        end)
+    end
+    -- LFGListApplicantMember_OnMouseDown(self): one member's row of an applicant to the
+    -- player's group.
+    function W.applicantMenu(applicantID, memberIdx)
+        local applicant = G.CreateFrame("Frame", nil, G.UIParent)
+        applicant.applicantID = applicantID
+        local member = G.CreateFrame("Button", nil, applicant)
+        member.memberIdx = memberIdx
+        return G.MenuUtil.CreateContextMenu(member, function(owner, root)
+            root:SetTag("MENU_LFG_FRAME_MEMBER_APPLY")
+            local name = G.C_LFGList.GetApplicantMemberInfo(member:GetParent().applicantID, member.memberIdx)
+            root:CreateTitle(name or "")
+            root:CreateButton(G.WHISPER, function() lfgTell(name) end)
+            root:CreateButton("Report Player", function() W.lfgReported = name end)
+        end)
+    end
+    -- The browser, once it has loaded (on demand): a right-click on a listing runs
+    -- LFGBrowseFrame:CreateSearchEntryMenu(searchEntry) (LFGBrowseSearchEntry_OnClick).
+    -- Its menu names an owner the client no longer has (SearchEntryDropDown is nil in
+    -- every branch), so it belongs to the top-level parent. W.lfgMenuLater: should
+    -- Blizzard ever build that menu later, outside the call.
+    function W.loadGroupBrowser()
+        if G.LFGBrowseFrame then return G.LFGBrowseFrame end
+        local browser = G.CreateFrame("Frame", "LFGBrowseFrame", G.UIParent)
+        function browser:CreateSearchEntryMenu(searchEntry)
+            local info = G.C_LFGList.GetSearchResultInfo(searchEntry.resultID)
+            if info == nil or W.lfgMenuLater then return end
+            return G.MenuUtil.CreateContextMenu(browser.SearchEntryDropDown, function(owner, root)
+                root:CreateTitle(info.leaderName)
+                local send = root:CreateButton(G.SEND_MESSAGE, function() lfgTell(info.leaderName) end)
+                send:SetEnabled(info.leaderName ~= nil)
+                root:CreateButton("Request to Join", function() W.lfgRequested = searchEntry.resultID end)
+            end)
+        end
+        W.fire("ADDON_LOADED", "Blizzard_GroupFinder_VanillaStyle")
+        return browser
     end
     -- First entry with this text, depth first (like MenuUtil.TraverseMenu).
     function W.menuItem(root, text)

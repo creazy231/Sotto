@@ -27,8 +27,11 @@ Cata, Wrath, Titan-Reforged) and Forever. Author for anything public: creazy231.
   - never touch Blizzard's chat edit box (not even out of combat: closing it from addon code
     taints `ACTIVE_CHAT_EDIT_BOX`); never write Blizzard's last-tell list; only
     `hooksecurefunc` post-hooks;
-  - player menus only through `Menu.ModifyMenu`, and there only the Whisper entry's responder
-    is swapped (`Core/Intercept.lua`); every other entry stays Blizzard's;
+  - player menus and the group finder's only through `Menu.ModifyMenu`, and there only the
+    whisper entry's responder is swapped (`Core/Intercept.lua`); every other entry stays
+    Blizzard's. The one untagged menu, the Classic-style group browser's listing, is reached
+    through post-hooks on `LFGBrowseFrame:CreateSearchEntryMenu` and `Menu.PopulateDescription`
+    (the menu that call built, when its title is the leader);
   - EllesmereUI only through `EllesmereUI.RegisterSkin` getters (no EUI internals, no `EllesmereUIDB`).
 - WoW Forever's gamepad interface (`ns.Gamepad()`, message `GAMEPAD_CHANGED`): Sotto steps aside there, as
   the controller cannot reach its window; whatever takes over Blizzard's chat (a filter, a key, a menu entry, an

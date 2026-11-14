@@ -293,6 +293,38 @@ T.it("closing a conversation from the rail menu", function()
     T.eq(#ns.Rail.badges, 1)
 end)
 
+T.it("shift-click or a middle click on a badge closes its conversation", function()
+    local G, W, ns, UI = load()
+    whisper(W, "a", "Aaa")
+    whisper(W, "b", "Bbb")
+    whisper(W, "c", "Ccc")
+    T.eq(ns.Rail.badges[3].conv.key, "aaa")
+    W.shift = true
+    ns.Rail.badges[3]:Click("LeftButton")
+    W.shift = false
+    T.no(ns.Store.Get("aaa").open, "shift-click closed it")
+    T.eq(#ns.Rail.badges, 2)
+    T.eq(ns.Rail.badges[1].conv.key, "ccc", "the others stay")
+    T.eq(ns.Rail.badges[2].conv.key, "bbb")
+    ns.Rail.badges[2]:Click("MiddleButton")
+    T.no(ns.Store.Get("bbb").open, "a middle click closes too")
+    T.eq(#ns.Rail.badges, 1)
+    ns.Rail.badges[1]:Click("LeftButton")
+    T.ok(ns.Store.Get("ccc").open, "a plain click opens")
+    T.eq(UI.Active().key, "ccc")
+end)
+
+T.it("with shift held, the right button still opens a badge's menu", function()
+    local G, W, ns, UI = load()
+    whisper(W, "a", "Aaa")
+    W.shift = true
+    ns.Rail.badges[1]:Click("RightButton")
+    W.shift = false
+    local menu = ns.W.CurrentMenu()
+    T.ok(menu and menu:IsShown(), "the menu")
+    T.ok(ns.Store.Get("aaa").open, "the conversation stays")
+end)
+
 T.it("slash command toggles, opens settings and resets", function()
     local G, W, ns, UI = load()
     G.SlashCmdList.SOTTO("")

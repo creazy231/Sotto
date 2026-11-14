@@ -38,11 +38,11 @@ A whisper messenger for World of Warcraft, in the spirit of WIM, with only the o
 
 ## Features
 
-- **One window for every whisper.** Character and Battle.net whispers, incoming and outgoing. A slim rail holds one badge per conversation: class icon, unread count, offline contacts greyed out.
+- **One window for every whisper.** Character and Battle.net whispers, incoming and outgoing. A slim rail holds one badge per conversation: class icon, unread count, offline contacts greyed out. Shift-click a badge to close it.
 - **Reads like a messenger.** Name and time once per run of messages, day separators, a "New" line above what you have not read yet, clickable items, quests and links.
 - **Answer where you read.** Enter sends, long messages are split for you, Up and Down bring back what you sent, every conversation keeps its own draft, shift-clicked items land in the box.
 - **Stays out of your way.** Out of combat the window opens on a new whisper; in combat a small card slides in instead. No keyboard focus is taken unless you ask for it. The window fades while you are not using it.
-- **Your whispers, your window.** Your reply key and "Whisper" in a player menu open Sotto right away, and a whisper you start from the chat box continues there. Whispers are hidden from the normal chat window.
+- **Your whispers, your window.** Your reply key, "Whisper" in a player menu and the group finder's whisper open Sotto right away, and a whisper you start from the chat box continues there. Whispers are hidden from the normal chat window.
 - **Remembers.** Conversations survive reloads and logouts (7, 30 or 90 days, or until logout).
 - **Matches your UI.** With EllesmereUI it follows your panel colour, font and accent live; the accent can also be your class colour. Works without EllesmereUI too. Scale it from 50 to 200 % in its settings.
 - **Every game version.** Retail, Classic Era, Anniversary, Mists of Pandaria Classic, Cataclysm, Wrath, Titan-Reforged and WoW Forever.
@@ -61,7 +61,7 @@ With WoW Forever's gamepad interface on, Sotto steps aside: your whispers stay i
 - `/sotto settings` settings
 - `/sotto reset` put the window back
 
-Key bindings under Key Bindings > AddOns > Sotto: show or hide, reply to the last whisper, whisper the last person you whispered, next unread conversation. With "Use Sotto to whisper" on, your normal reply keys and "Whisper" in player menus open Sotto too (inside dungeons and raids they stay with the normal chat, because the game hides whispers from addons there). The minimap button and the addon compartment open it too.
+Key bindings under Key Bindings > AddOns > Sotto: show or hide, reply to the last whisper, whisper the last person you whispered, next unread conversation. With "Use Sotto to whisper" on, your normal reply keys and "Whisper" in player menus and the group finder open Sotto too (inside dungeons and raids they stay with the normal chat, because the game hides whispers from addons there). The minimap button and the addon compartment open it too.
 
 ## Coming from WIM?
 
