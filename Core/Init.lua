@@ -137,3 +137,56 @@ function ns.Print(text)
         frame:AddMessage("|cffff7d0aSotto|r: " .. tostring(text))
     end
 end
+
+-------------------------------------------------------------------------------
+--  WoW Forever's gamepad interface (a switch in the game's Gamepad settings).
+--  The game's own chat is made for the controller there (Blizzard_ChatFrameBase:
+--  gamepad focus, the A/X/Y prompts) and the controller cannot reach an addon's
+--  window: Forever has no pointer for it, and Blizzard's gamepad navigation
+--  takes no frame from addon code. So while it is on Sotto steps aside:
+--  whispers stay in the game's chat, which shows, alerts and answers them, and
+--  Sotto only keeps a copy (Engine, Intercept, Window, Settings).
+--    ns.Gamepad()                  the gamepad interface is on: Blizzard's own test
+--                                  (InputUtil.IsGamepadUIEnabled), read live; a style
+--                                  the client lacks (Retail, Classic), keeps secret
+--                                  or fails to give counts as the mouse interface
+--    message GAMEPAD_CHANGED(on)   a frame after the style changed, when the answer did
+-------------------------------------------------------------------------------
+local function clear(v, kind)
+    if ns.IsSecret(v) or type(v) ~= kind then return nil end
+    return v
+end
+
+function ns.Gamepad()
+    local api = clear(C_InputInterfaceStyle, "table")
+    local current = api and clear(api.GetCurrentStyle, "function")
+    local enum = clear(Enum, "table")
+    local styles = enum and clear(enum.InputDeviceInterfaceType, "table")
+    local gamepad = styles and clear(styles.Gamepad, "number")
+    if not (current and gamepad) then return false end
+    local ok, style = pcall(current)
+    return ok and clear(style, "number") == gamepad
+end
+
+-- The game says the style changes before it reads right (EllesmereUI: a frame
+-- later), so it is read a frame after the event, once for a burst of them.
+-- What GAMEPAD_CHANGED stands for starts as the answer at load, taken again at
+-- login in case the client knew it only by then.
+local gamepadSaid = ns.Gamepad()
+local gamepadDue = false
+
+local function gamepadCheck()
+    gamepadDue = false
+    local on = ns.Gamepad()
+    if on == gamepadSaid then return end
+    gamepadSaid = on
+    ns.Fire("GAMEPAD_CHANGED", on)
+end
+
+ns.On("PLAYER_LOGIN", function() gamepadSaid = ns.Gamepad() end)
+
+ns.On("INPUT_DEVICE_INTERFACE_TRANSITION", function()
+    if gamepadDue then return end
+    gamepadDue = true
+    ns.After(0, gamepadCheck)
+end)

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0
+
+- WoW Forever's gamepad interface: Sotto now steps aside while it is on. Your whispers
+  stay in the game's own chat, which is made for the controller: it shows them, plays its
+  sound, and your reply keys and "Whisper" in player menus answer there. Sotto opens no
+  window and no notification then (switching to the gamepad interface closes them) and
+  quietly keeps a copy of your whispers, so your conversations are complete when you are
+  back on mouse and keyboard. The window still opens by hand, and its settings say so at
+  the top.
+
 ## 1.0.0
 
 First release.

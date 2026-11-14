@@ -171,6 +171,26 @@ reskinning WIM further (keeps WIM's options and complexity) or forking WIM (huge
   one-click switch to "In-line".
 - **Esc** closes the window (UISpecialFrames) unless the compose box has focus, which Esc
   clears first.
+- **WoW Forever's gamepad interface** (2026-11-14, the user's request; 1.1.0): Sotto steps
+  aside while it is on. Why: the controller cannot reach an addon's window there (Forever's
+  only pointer, the soft cursor, serves the map and the colour picker; Blizzard's gamepad
+  navigation, SmartNavigation, refuses frames from addon code: `EnsureIsSecure`,
+  `SecureHelper:WrapFunction`), while the game's own chat is made for the controller
+  (`FloatingChatFrame` gamepad focus and prompts). Real gamepad support would need a
+  controller layer of Sotto's own (button input, focus ring, legend, an open binding, as
+  NaowhForever's `GamepadNav.lua` does) and typing would still need a keyboard; not built.
+  - `ns.Gamepad()` (Core/Init.lua) is Blizzard's own test (`InputUtil.IsGamepadUIEnabled`:
+    `C_InputInterfaceStyle.GetCurrentStyle() == Enum.InputDeviceInterfaceType.Gamepad`),
+    live; false where the client lacks it (Retail, Classic). `GAMEPAD_CHANGED(on)` comes a
+    frame after `INPUT_DEVICE_INTERFACE_TRANSITION` (the style reads right only then).
+  - Then: the chat filter hides nothing, so the chat window shows every whisper and plays
+    its own sound and flash; Sotto stores a copy, never as unread; no window, notification
+    or "continue in Sotto" for a whisper sent from the chat box; the reply keys, the
+    menus' Whisper entry and a typed `/r` are Blizzard's (no override, no swap, no notice).
+  - The switch to that interface closes the window and the notifications; the way back
+    changes nothing on screen. By hand (`/sotto`, the minimap button, the compartment) the
+    window still opens. Settings show a row at the top ("Gamepad interface style"), and the
+    whisper-tab hint stays hidden there.
 
 ## Left to the builder
 

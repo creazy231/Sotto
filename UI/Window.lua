@@ -3,7 +3,9 @@
 --  the rail on the left; on the right one of three views: a conversation
 --  (header, notices, log, compose box), the settings, or the empty view.
 --  It moves by its header or the mark, resizes from the corner, closes with
---  Esc, remembers where it was, and fades while idle.
+--  Esc, remembers where it was, and fades while idle. In WoW Forever's gamepad
+--  interface (ns.Gamepad) no whisper opens it or a notification, and the
+--  switch to that interface closes both; by hand it still opens.
 -------------------------------------------------------------------------------
 local _, ns = ...
 local UI = {}
@@ -653,6 +655,8 @@ ns.Listen("INCOMING", function(conv, msg, wantOpen)
     if win:IsShown() then
         UI.Wake()
         if view == "empty" then UI.Select(conv) end
+    elseif ns.Gamepad() then
+        return -- the game's own chat has it, made for the controller
     elseif wantOpen then
         UI.Open(conv)
     else
@@ -710,6 +714,14 @@ ns.Listen("LOCKDOWN_CHANGED", function(locked)
 end)
 
 ns.Listen("COMPOSE_FOCUS", function() UI.Wake() end)
+
+-- Into the gamepad interface: the controller cannot reach the window or the
+-- notifications, and the game's own chat takes the whispers from now on.
+ns.Listen("GAMEPAD_CHANGED", function(on)
+    if on ~= true then return end
+    ns.Toast.HideAll()
+    UI.Hide()
+end)
 
 ns.Listen("SETTING_CHANGED", function(key)
     if key == "fadeIdle" then UI.Wake() end

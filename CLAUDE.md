@@ -30,6 +30,9 @@ Cata, Wrath, Titan-Reforged) and Forever. Author for anything public: creazy231.
   - player menus only through `Menu.ModifyMenu`, and there only the Whisper entry's responder
     is swapped (`Core/Intercept.lua`); every other entry stays Blizzard's;
   - EllesmereUI only through `EllesmereUI.RegisterSkin` getters (no EUI internals, no `EllesmereUIDB`).
+- WoW Forever's gamepad interface (`ns.Gamepad()`, message `GAMEPAD_CHANGED`): Sotto steps aside there, as
+  the controller cannot reach its window; whatever takes over Blizzard's chat (a filter, a key, a menu entry, an
+  automatic open) must check it. See `docs/design.md`.
 - `docs/` holds the user's screenshot and EllesmereUI's licensed font (mockup assets): never
   ship `docs/` or `tests/` in a public release.
 - Visual check without the game: `luajit tools/render_ui.lua <dir>/chat.html chat` draws what the

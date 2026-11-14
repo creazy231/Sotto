@@ -21,6 +21,10 @@
 --  in Sotto (Engine: OUTGOING). A typed /r would use Blizzard's reply target,
 --  which goes stale because Sotto hides whispers from the chat window; a
 --  read-only post-hook prints a notice in that case.
+--
+--  In WoW Forever's gamepad interface (ns.Gamepad) all of it is Blizzard's: the
+--  keys, the Whisper entry and /r answer in the game's own chat, which is made
+--  for the controller.
 -------------------------------------------------------------------------------
 local _, ns = ...
 local I = {}
@@ -31,9 +35,10 @@ local owner = CreateFrame("Frame")
 local applied = {}
 local MAP = { REPLY = "SOTTO_REPLY", REPLY2 = "SOTTO_REPLY_SENT" }
 
--- The setting is on and the player is outside instances.
+-- The setting is on, the player is outside instances and not in the gamepad
+-- interface.
 local function intercepting()
-    if not ns.DB or not ns.Get("intercept") then return false end
+    if not ns.DB or not ns.Get("intercept") or ns.Gamepad() then return false end
     return not (IsInInstance and IsInInstance())
 end
 
@@ -80,7 +85,7 @@ end
 
 local function onProcessChatType(_, _, index)
     if index ~= "REPLY" or not ns.DB then return end
-    if InCombatLockdown() or ns.InLockdown() then return end
+    if InCombatLockdown() or ns.InLockdown() or ns.Gamepad() then return end
     local now = GetTime()
     if now - lastNotice < 1 then return end
     local mine = ns.Engine.LastIncoming()
@@ -230,3 +235,4 @@ end
 ns.Listen("SETTING_CHANGED", function(key)
     if key == "intercept" then I.Apply() end
 end)
+ns.Listen("GAMEPAD_CHANGED", function() I.Apply() end)

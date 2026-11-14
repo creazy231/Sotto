@@ -51,6 +51,10 @@ A whisper messenger for World of Warcraft, in the spirit of WIM, with only the o
 
 During boss encounters, Mythic+ and rated PvP the game can hide whisper contents from addons. Sotto tells you so: those whispers stay in your normal chat and arrive in Sotto when the fight ends. Sending pauses meanwhile; your draft waits.
 
+## Gamepad interface (WoW Forever)
+
+With WoW Forever's gamepad interface on, Sotto steps aside: your whispers stay in the game's own chat, which is made for the controller, and Sotto keeps a copy of them for when you are back on mouse and keyboard.
+
 ## Commands
 
 - `/sotto` open or close the window

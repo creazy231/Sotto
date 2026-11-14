@@ -1,7 +1,8 @@
 -------------------------------------------------------------------------------
 --  Sotto: the settings view (the gear in the rail). Nine settings in four
 --  sections, the rows of the approved mockup: label, a small description,
---  the control on the right, a faint line between rows.
+--  the control on the right, a faint line between rows. In WoW Forever's
+--  gamepad interface a row above them says that the game's own chat is used.
 -------------------------------------------------------------------------------
 local _, ns = ...
 local St = {}
@@ -155,6 +156,11 @@ function St.Build(v)
     thumb:Hide()
 
     local C = St.controls
+    -- Only in WoW Forever's gamepad interface, where the game's own chat takes over.
+    St.gamepad = row(L["Gamepad interface style"],
+        L["While it is on, the game's own chat is used; Sotto keeps a copy of your whispers"],
+        CreateFrame("Frame", nil, content))
+
     section(L["When a whisper arrives"])
     C.openOn = W.Segmented(content, {
         { value = "always", text = L["Always"] }, { value = "nocombat", text = L["Out of combat"] },
@@ -226,9 +232,12 @@ function St.Refresh()
     if not content then return end
     local C = St.controls
     for _, c in pairs(C) do if c.Refresh then c:Refresh() end end
+    local gamepad = ns.Gamepad()
+    St.gamepad:SetShown(gamepad)
     local mode = GetCVar and GetCVar("whisperMode")
-    St.whisperMode:SetShown(mode ~= nil and mode ~= "inline")
+    St.whisperMode:SetShown(mode ~= nil and mode ~= "inline" and not gamepad)
     layout()
 end
 
 ns.Listen("LOOKS_CHANGED", function() if content then layout() end end)
+ns.Listen("GAMEPAD_CHANGED", function() St.Refresh() end)

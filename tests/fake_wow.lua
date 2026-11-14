@@ -51,6 +51,7 @@ function F.new(opts)
     G.__T = W
     W.globalsWritten = {}
     W.events = {}           -- event -> list of frames
+    W.unknownEvents = {}    -- event -> true: RegisterEvent raises for it, as for an event the client lacks
     W.timers = {}
     W.clock = 1000          -- GetTime()
     W.epoch = 1794499200    -- time(): 2026-11-12 14:00 UTC-ish
@@ -339,6 +340,7 @@ function F.new(opts)
     function Object:GetNumChildren() return #self._children end
     function Object:GetRegions() return unpack(self._regions) end
     function Object:RegisterEvent(e)
+        if W.unknownEvents[e] then error("Attempt to register unknown event \"" .. e .. "\"", 2) end
         W.events[e] = W.events[e] or {}
         for _, f in ipairs(W.events[e]) do if f == self then return end end
         table.insert(W.events[e], self)
@@ -750,6 +752,20 @@ function F.new(opts)
         AddOnRestrictionState = { Inactive = 0, Activating = 1, Active = 2 },
         BattleNetFriendLevel = { Title = 1, Account = 2 },
     }
+
+    -- WoW Forever's interface style (its gamepad interface, a switch in the game's Gamepad settings), with
+    -- Blizzard's enum and its numbers (InputConstantsDocumentation.lua). opts.gamepad starts in the Gamepad style.
+    -- W.switchStyle("Gamepad" | "Mkb") changes it the way that is hardest on the addon:
+    -- INPUT_DEVICE_INTERFACE_TRANSITION(new, old) comes first, while GetCurrentStyle still reads the old style,
+    -- which it reads right only afterwards (EllesmereUI: "the style reads right one frame later").
+    G.Enum.InputDeviceInterfaceType = { Mkb = 0, Gamepad = 1 }
+    W.interfaceStyle = opts.gamepad and 1 or 0
+    G.C_InputInterfaceStyle = { GetCurrentStyle = function() return W.interfaceStyle end }
+    function W.switchStyle(style)
+        local new, old = G.Enum.InputDeviceInterfaceType[style], W.interfaceStyle
+        W.fire("INPUT_DEVICE_INTERFACE_TRANSITION", new, old)
+        W.interfaceStyle = new
+    end
     G.RAID_CLASS_COLORS = {
         WARRIOR = { r = 0.78, g = 0.61, b = 0.43 }, PALADIN = { r = 0.96, g = 0.55, b = 0.73 },
         HUNTER = { r = 0.67, g = 0.83, b = 0.45 }, ROGUE = { r = 1, g = 0.96, b = 0.41 },

@@ -39,6 +39,14 @@ hide whisper contents from addons. Sotto shows a notice
 then: those whispers stay in your normal chat and land in Sotto when the lockdown ends.
 Sending from Sotto pauses during that time; your draft waits.
 
+## Gamepad interface (WoW Forever)
+
+With WoW Forever's gamepad interface on, Sotto steps aside: your whispers stay in the
+game's own chat, which is made for the controller, and your reply keys and "Whisper" in
+player menus answer there. Sotto opens no window or notification meanwhile (switching to
+the gamepad interface closes them) and keeps a copy of your whispers for when you are back
+on mouse and keyboard. You can still open it by hand.
+
 ## Commands and key bindings
 
 | | |

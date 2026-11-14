@@ -14,6 +14,10 @@
 --  Chat lockdown (12.x): text and sender arrive secret. Those whispers stay in
 --  the chat window; their lineIDs are queued and rebuilt with
 --  C_ChatInfo.GetChatLine* once the lockdown ends.
+--
+--  WoW Forever's gamepad interface (ns.Gamepad): the chat window keeps every
+--  whisper and alerts as the game does; Sotto stores a copy, not as unread,
+--  and opens nothing.
 -------------------------------------------------------------------------------
 local _, ns = ...
 local E = {}
@@ -115,9 +119,10 @@ end
 --  Filter (runs inside Blizzard's chat frames, before our handlers)
 -------------------------------------------------------------------------------
 -- An outgoing whisper sent from the chat box opens its conversation in Sotto
--- (out of combat, with "Use Sotto to whisper" on); otherwise it stays in chat.
+-- (out of combat, with "Use Sotto to whisper" on, not in the gamepad
+-- interface); otherwise it stays in chat.
 function E.OpensOnOutgoing()
-    return ns.Get("intercept") and not InCombatLockdown()
+    return ns.Get("intercept") and not InCombatLockdown() and not ns.Gamepad()
 end
 
 local function uiShown()
@@ -149,6 +154,8 @@ end
 
 function E.Filter(frame, event, ...)
     if othersPass then return false end
+    -- The gamepad interface: the game's own chat is the controller's.
+    if ns.Gamepad() then return false end
     -- Never hide anything Sotto could not show (no window: a load error).
     if not ns.DB or not ns.Get("hideInChat") or not (ns.UI and ns.UI.win) then return false end
     if ns.IsSecret(...) then return false end
@@ -253,8 +260,10 @@ local function handle(event, t, recovered, ...)
     else
         local msg = ns.Store.Add(conv, "i", text, t)
         lastInKey = conv.key
-        if not isActive(conv) then ns.Store.MarkUnread(conv) end
-        if ns.Get("hideInChat") and not hadSecrets then alert(conv) end
+        -- In the gamepad interface the chat window showed it and alerted.
+        local gamepad = ns.Gamepad()
+        if not isActive(conv) and not gamepad then ns.Store.MarkUnread(conv) end
+        if ns.Get("hideInChat") and not hadSecrets and not gamepad then alert(conv) end
         ns.Fire("INCOMING", conv, msg, E.ShouldOpen(), recovered)
     end
     if isNew then ns.Contacts.Refresh(conv) end
