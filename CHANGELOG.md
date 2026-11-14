@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.0 (unreleased)
+## 1.3.0
 
 - The group finder's whisper entries now open Sotto right away, as "Whisper" in a player
   menu does, instead of the chat box first: "Send Message" on a listing in the group
