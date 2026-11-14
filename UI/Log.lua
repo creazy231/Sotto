@@ -5,6 +5,10 @@
 --  drawn; heights are measured once per message, width and text size.
 --  The newest message sits at the bottom; scrolling back keeps your place
 --  when new messages arrive and offers a "New messages" pill instead.
+--  One log per pane (the window's, and each separate window's):
+--    ns.Log.New(frame) -> log    log:SetConv(conv, firstUnread), log:Refresh(),
+--                                log:Render(), log:OnMessage(conv), log:Scroll(d),
+--                                log:ScrollToBottom(), log:Clear()
 -------------------------------------------------------------------------------
 local _, ns = ...
 local Lg = {}
@@ -17,19 +21,20 @@ local GROUP_GAP = 5 * 60
 local PAD_X, PAD_TOP, PAD_BOTTOM = 12, 6, 8
 local H_DAY, H_NEW, H_HEAD = 22, 20, 24
 
-Lg.items, Lg.rows = {}, {}
-local frame, content, measure, measureSmall, thumb, jump
-local conv, newIndex
-local offset, total = 0, 0
-local pools = { day = {}, new = {}, head = {}, line = {}, sys = {} }
+-- Measured heights, shared by every log (a message is measured per width and size).
 local heights = setmetatable({}, { __mode = "k" })
+local logs = {}
+
+local Log = {}
+Log.__index = Log
 
 -------------------------------------------------------------------------------
 --  Items
 -------------------------------------------------------------------------------
-local function build()
+local function build(self)
     local items = {}
-    Lg.items = items
+    self.items = items
+    local conv, newIndex = self.conv, self.newIndex
     if not conv then return end
     local prevDay, prev
     local now = time()
@@ -60,11 +65,11 @@ local function lineText(msg)
     return ns.Format.Linkify(msg.m or "")
 end
 
-local function measureItem(it, width)
+local function measureItem(self, it, width)
     if it.kind == "day" then return H_DAY end
     if it.kind == "new" then return H_NEW end
     if it.kind == "head" then return H_HEAD end
-    local fs = it.kind == "sys" and measureSmall or measure
+    local fs = it.kind == "sys" and self.measureSmall or self.measure
     local w = it.kind == "sys" and (width - 18) or width
     local _, size = ns.Theme.Font(it.kind == "sys" and "small" or "body")
     local c = heights[it.msg]
@@ -76,15 +81,15 @@ local function measureItem(it, width)
     return h
 end
 
-local function layout()
-    local width = content:GetWidth()
+local function layout(self)
+    local width = self.content:GetWidth()
     local y = 0
-    for _, it in ipairs(Lg.items) do
+    for _, it in ipairs(self.items) do
         it.top = y
-        it.h = measureItem(it, width)
+        it.h = measureItem(self, it, width)
         y = y + it.h
     end
-    total = y
+    self.total = y
 end
 
 -------------------------------------------------------------------------------
@@ -117,8 +122,8 @@ local function onLinkLeave(self)
     if GameTooltip:GetOwner() == self then GameTooltip:Hide() end
 end
 
-local function newRow(kind)
-    local r = CreateFrame("Frame", nil, content)
+local function newRow(self, kind)
+    local r = CreateFrame("Frame", nil, self.content)
     r.kind = kind
     if kind == "day" then
         r.label = W.Text(r, "section", "muted")
@@ -166,7 +171,7 @@ end
 
 local SYS_ICON = { afk = "moon", dnd = "moon", notfound = "offline", ignored = "warn" }
 
-local function fillRow(r, it)
+local function fillRow(self, r, it)
     if it.kind == "day" then
         r.label:SetText(it.text:upper())
         local lw = r.label:GetStringWidth() / 2 + 8
@@ -185,8 +190,8 @@ local function fillRow(r, it)
             r.name:SetText(L["You"])
             W.SetTextColor(r.name, "accent")
         else
-            r.name:SetText(ns.Names.Short(ns.Contacts.Name(conv)))
-            local cr, cg, cb = ns.Contacts.Color(conv)
+            r.name:SetText(ns.Names.Short(ns.Contacts.Name(self.conv)))
+            local cr, cg, cb = ns.Contacts.Color(self.conv)
             W.SetTextColor(r.name, { cr, cg, cb })
         end
         r.time:SetText(ns.Format.Time(msg.t))
@@ -198,123 +203,130 @@ local function fillRow(r, it)
     end
 end
 
-local function release()
-    for _, r in ipairs(Lg.rows) do
+local function release(self)
+    for _, r in ipairs(self.rows) do
         r:Hide()
-        local p = pools[r.kind]
+        local p = self.pools[r.kind]
         p[#p + 1] = r
     end
-    Lg.rows = {}
+    self.rows = {}
 end
 
 -------------------------------------------------------------------------------
 --  Render
 -------------------------------------------------------------------------------
-function Lg.Render()
-    if not content then return end
-    release()
+function Log:Render()
+    local content = self.content
+    release(self)
     local view = content:GetHeight()
+    local total = self.total
     local maxOff = max(0, total - view)
-    offset = max(0, min(offset, maxOff))
-    local viewTop = total - view - offset
-    for _, it in ipairs(Lg.items) do
+    self.offset = max(0, min(self.offset, maxOff))
+    local viewTop = total - view - self.offset
+    for _, it in ipairs(self.items) do
         if it.top + it.h > viewTop and it.top < viewTop + view then
-            local p = pools[it.kind]
-            local r = table.remove(p) or newRow(it.kind)
+            local p = self.pools[it.kind]
+            local r = table.remove(p) or newRow(self, it.kind)
             r:ClearAllPoints()
             r:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -(it.top - viewTop))
             r:SetPoint("RIGHT", content, "RIGHT", 0, 0)
             r:SetHeight(it.h)
-            fillRow(r, it)
+            fillRow(self, r, it)
             r:Show()
-            Lg.rows[#Lg.rows + 1] = r
+            self.rows[#self.rows + 1] = r
         end
     end
+    local thumb = self.thumb
     if total > view and view > 0 then
         local h = max(16, view * view / total)
-        local pos = (maxOff > 0) and ((maxOff - offset) / maxOff) * (view - h) or 0
+        local pos = (maxOff > 0) and ((maxOff - self.offset) / maxOff) * (view - h) or 0
         thumb:ClearAllPoints()
-        thumb:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -(PAD_TOP + pos))
+        thumb:SetPoint("TOPRIGHT", self.frame, "TOPRIGHT", -3, -(PAD_TOP + pos))
         thumb:SetHeight(h)
         thumb:Show()
     else
         thumb:Hide()
     end
-    if offset <= 0 then jump:Hide() end
+    if self.offset <= 0 then self.jump:Hide() end
 end
 
-function Lg.Refresh(remeasure)
-    if not content then return end
+-- remeasure: the text size or the font changed (every log's heights go).
+function Log:Refresh(remeasure)
     if remeasure then for k in pairs(heights) do heights[k] = nil end end
-    build()
-    layout()
-    Lg.Render()
+    build(self)
+    layout(self)
+    self:Render()
 end
 
-function Lg.SetConv(c, firstUnread)
-    conv, newIndex, offset = c, firstUnread, 0
-    if jump then jump:Hide() end
-    Lg.Refresh()
+function Log:SetConv(c, firstUnread)
+    self.conv, self.newIndex, self.offset = c, firstUnread, 0
+    self.jump:Hide()
+    self:Refresh()
 end
 
-function Lg.Clear()
-    conv, newIndex = nil, nil
-    Lg.Refresh()
+function Log:Clear()
+    self.conv, self.newIndex = nil, nil
+    self:Refresh()
 end
 
 -- A message arrived in the shown conversation.
-function Lg.OnMessage(c)
-    if c ~= conv then return end
-    local before = total
-    build()
-    layout()
-    if offset > 0 then
-        offset = offset + (total - before)
-        jump:Show()
+function Log:OnMessage(c)
+    if c ~= self.conv then return end
+    local before = self.total
+    build(self)
+    layout(self)
+    if self.offset > 0 then
+        self.offset = self.offset + (self.total - before)
+        self.jump:Show()
     end
-    Lg.Render()
+    self:Render()
 end
 
-function Lg.Scroll(delta)
-    local step = IsShiftKeyDown() and content:GetHeight() * 0.9 or 40
-    offset = offset + delta * step
-    Lg.Render()
+function Log:Scroll(delta)
+    local step = IsShiftKeyDown() and self.content:GetHeight() * 0.9 or 40
+    self.offset = self.offset + delta * step
+    self:Render()
 end
 
-function Lg.ScrollToBottom()
-    offset = 0
-    Lg.Render()
+function Log:ScrollToBottom()
+    self.offset = 0
+    self:Render()
 end
 
 -------------------------------------------------------------------------------
 --  Build
 -------------------------------------------------------------------------------
-function Lg.Build(f)
-    frame = f
-    Lg.frame = f
+function Lg.New(f)
+    local self = setmetatable({
+        frame = f, items = {}, rows = {}, offset = 0, total = 0,
+        pools = { day = {}, new = {}, head = {}, line = {}, sys = {} },
+    }, Log)
     f:EnableMouseWheel(true)
-    f:SetScript("OnMouseWheel", function(_, delta) Lg.Scroll(delta) end)
-    content = CreateFrame("Frame", nil, f)
+    f:SetScript("OnMouseWheel", function(_, delta) self:Scroll(delta) end)
+    local content = CreateFrame("Frame", nil, f)
     content:SetPoint("TOPLEFT", PAD_X, -PAD_TOP)
     content:SetPoint("BOTTOMRIGHT", -PAD_X, PAD_BOTTOM)
     content:SetClipsChildren(true)
-    Lg.content = content
+    self.content = content
 
-    measure = W.Text(content, "body", "text")
+    local measure = W.Text(content, "body", "text")
     measure:SetWordWrap(true)
     measure:SetNonSpaceWrap(true)
     measure:SetAlpha(0)
     measure:SetPoint("TOPLEFT", content, "BOTTOMLEFT", 0, -50)
-    measureSmall = W.Text(content, "small", "muted")
+    self.measure = measure
+    local measureSmall = W.Text(content, "small", "muted")
     measureSmall:SetWordWrap(true)
     measureSmall:SetAlpha(0)
     measureSmall:SetPoint("TOPLEFT", content, "BOTTOMLEFT", 0, -50)
+    self.measureSmall = measureSmall
 
-    thumb = W.Fill(f, "scroll", "ARTWORK")
+    local thumb = W.Fill(f, "scroll", "ARTWORK")
     thumb:SetWidth(2)
     thumb:Hide()
+    self.thumb = thumb
 
-    jump = CreateFrame("Button", nil, f)
+    local jump = CreateFrame("Button", nil, f)
     jump:SetSize(118, 20)
     jump:SetPoint("BOTTOM", 0, 10)
     jump:SetFrameLevel(f:GetFrameLevel() + 5)
@@ -325,8 +337,15 @@ function Lg.Build(f)
     jump.text = W.Text(jump, "badge", "onAccent")
     jump.text:SetPoint("LEFT", jump.icon, "RIGHT", 5, 0)
     jump.text:SetText(L["New messages"])
-    jump:SetScript("OnClick", function() Lg.ScrollToBottom() end)
+    jump:SetScript("OnClick", function() self:ScrollToBottom() end)
     jump:Hide()
+    self.jump = jump
+
+    logs[#logs + 1] = self
+    return self
 end
 
-ns.Listen("LOOKS_CHANGED", function() Lg.Refresh(true) end)
+ns.Listen("LOOKS_CHANGED", function()
+    for k in pairs(heights) do heights[k] = nil end
+    for _, log in ipairs(logs) do log:Refresh() end
+end)

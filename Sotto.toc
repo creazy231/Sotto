@@ -28,6 +28,7 @@ UI\CopyBox.lua
 UI\Rail.lua
 UI\Log.lua
 UI\Compose.lua
+UI\Pane.lua
 UI\Settings.lua
 UI\Toast.lua
 UI\Window.lua

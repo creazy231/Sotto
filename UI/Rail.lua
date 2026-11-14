@@ -57,6 +57,51 @@ local function convMenu(b)
     }, 150)
 end
 
+-- A conversation's tile: its class icon, or initials (Battle.net ones in blue,
+-- underlined); greyed out while the contact is offline. The rail's badges and
+-- the header of a separate window use it.
+function R.NewTile(parent, size)
+    local tile = CreateFrame("Frame", nil, parent)
+    tile:SetSize(size, size)
+    tile.bg = W.Fill(tile, "panelAlt")
+    tile.bg:SetAllPoints()
+    W.Outline(tile, "black")
+    tile.icon = tile:CreateTexture(nil, "ARTWORK")
+    tile.icon:SetAllPoints()
+    tile.initials = W.Text(tile, "bold", "bn")
+    tile.initials:SetPoint("CENTER", 0, 1)
+    tile.bnLine = W.Fill(tile, "bn", "ARTWORK", 2)
+    tile.bnLine:SetPoint("BOTTOMLEFT")
+    tile.bnLine:SetPoint("BOTTOMRIGHT")
+    tile.bnLine:SetHeight(2)
+    tile.bnLine:SetAlpha(0.55)
+    return tile
+end
+
+function R.PaintTile(tile, conv)
+    local icon = ns.Contacts.Icon(conv)
+    if icon then
+        if icon.atlas then
+            tile.icon:SetAtlas(icon.atlas)
+        else
+            tile.icon:SetTexture(icon.texture)
+            tile.icon:SetTexCoord(icon.coords[1], icon.coords[2], icon.coords[3], icon.coords[4])
+        end
+        tile.icon:Show()
+        tile.initials:Hide()
+        tile.bnLine:Hide()
+    else
+        tile.icon:Hide()
+        tile.initials:SetText(ns.Contacts.Initials(conv))
+        W.SetTextColor(tile.initials, conv.kind == "bn" and "bn" or "dim")
+        tile.initials:Show()
+        tile.bnLine:SetShown(conv.kind == "bn")
+    end
+    local offline = conv.online == false
+    tile:SetAlpha(offline and 0.45 or 1)
+    tile.icon:SetDesaturated(offline)
+end
+
 local function newBadge()
     local b = CreateFrame("Button", nil, list)
     b:SetSize(46, 38)
@@ -73,22 +118,10 @@ local function newBadge()
     b.bar:SetWidth(2)
     b.bar:Hide()
 
-    local tile = CreateFrame("Frame", nil, b)
-    tile:SetSize(28, 28)
+    local tile = R.NewTile(b, 28)
     tile:SetPoint("CENTER")
-    tile.bg = W.Fill(tile, "panelAlt")
-    tile.bg:SetAllPoints()
-    W.Outline(tile, "black")
     b.tile = tile
-    b.icon = tile:CreateTexture(nil, "ARTWORK")
-    b.icon:SetAllPoints()
-    b.initials = W.Text(tile, "bold", "bn")
-    b.initials:SetPoint("CENTER", 0, 1)
-    b.bnLine = W.Fill(tile, "bn", "ARTWORK", 2)
-    b.bnLine:SetPoint("BOTTOMLEFT")
-    b.bnLine:SetPoint("BOTTOMRIGHT")
-    b.bnLine:SetHeight(2)
-    b.bnLine:SetAlpha(0.55)
+    b.icon, b.initials, b.bnLine = tile.icon, tile.initials, tile.bnLine
 
     -- Unread pill with a ring in the rail colour so it reads cut out.
     b.ring = W.Pill(b, 19, "sidebar", "OVERLAY")
@@ -126,27 +159,7 @@ local function paintBadge(b, conv, active)
     b.active = active
     b.sel:SetShown(active)
     b.bar:SetShown(active)
-    local icon = ns.Contacts.Icon(conv)
-    if icon then
-        if icon.atlas then
-            b.icon:SetAtlas(icon.atlas)
-        else
-            b.icon:SetTexture(icon.texture)
-            b.icon:SetTexCoord(icon.coords[1], icon.coords[2], icon.coords[3], icon.coords[4])
-        end
-        b.icon:Show()
-        b.initials:Hide()
-        b.bnLine:Hide()
-    else
-        b.icon:Hide()
-        b.initials:SetText(ns.Contacts.Initials(conv))
-        W.SetTextColor(b.initials, conv.kind == "bn" and "bn" or "dim")
-        b.initials:Show()
-        b.bnLine:SetShown(conv.kind == "bn")
-    end
-    local offline = conv.online == false
-    b.tile:SetAlpha(offline and 0.45 or 1)
-    b.icon:SetDesaturated(offline)
+    R.PaintTile(b.tile, conv)
     local unread = conv.unread or 0
     if unread > 0 then
         b.count:SetText(unread > 9 and "9+" or tostring(unread))

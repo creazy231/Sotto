@@ -1,7 +1,7 @@
 -------------------------------------------------------------------------------
 --  Sotto: the window. Rail + chat (approved mockup, 410 x 306 by default):
 --  the rail on the left; on the right one of three views: a conversation
---  (header, notices, log, compose box), the settings, or the empty view.
+--  (the chat column, UI/Pane.lua), the settings, or the empty view.
 --  It moves by its header or the mark, resizes from the corner, closes with
 --  Esc, remembers where it was, takes the Scale setting (its bottom-left
 --  corner stays put), and fades while idle. In WoW Forever's gamepad
@@ -15,12 +15,10 @@ ns.UI = UI
 local W, L = ns.W, ns.L
 local floor, max = math.floor, math.max
 
-local RAIL_W, HEAD_H = 46, 46
-local IDLE_AFTER, IDLE_ALPHA, FADE_TIME = 4, 0.42, 0.3
+local RAIL_W = 46
 
 local active        -- the conversation in the chat view
 local view = "empty"
-local wimState      -- nil | "on" | "off" (WIM disabled, reload pending)
 
 -------------------------------------------------------------------------------
 --  Frame
@@ -65,118 +63,25 @@ function UI.StopMoving()
 end
 
 -------------------------------------------------------------------------------
---  Chat view
+--  Chat view: the conversation's column
 -------------------------------------------------------------------------------
 local chat = CreateFrame("Frame", nil, main)
 chat:SetAllPoints()
 
-local head = CreateFrame("Frame", nil, chat)
-head:SetPoint("TOPLEFT")
-head:SetPoint("TOPRIGHT")
-head:SetHeight(HEAD_H)
-head:EnableMouse(true)
-head:RegisterForDrag("LeftButton")
-head:SetScript("OnDragStart", UI.StartMoving)
-head:SetScript("OnDragStop", UI.StopMoving)
-head.sky = head:CreateTexture(nil, "BACKGROUND", nil, 1)
-head.sky:SetAllPoints()
-W.Paint(head.sky, function(t)
-    local r, g, b = ns.Theme.Color("sky")
-    t:SetColorTexture(1, 1, 1, 1)
-    t:SetGradient("VERTICAL", CreateColor(r, g, b, 0), CreateColor(r, g, b, 0.55))
-end)
-W.Hair(head, "BOTTOM")
+local pane = ns.Pane.New(chat, {
+    onClose = function() UI.Hide() end,
+    promptParent = main,
+    onPick = function(_, name)
+        local conv = name and ns.Store.Ensure("w", name)
+        if conv then UI.Open(conv, { focus = true }) end
+    end,
+    move = { start = UI.StartMoving, stop = UI.StopMoving },
+})
+UI.pane = pane
+UI.header, UI.notice, UI.banner, UI.prompt = pane.head, pane.notice, pane.banner, pane.prompt
+UI.log, UI.compose = pane.log, pane.compose
 
-head.dot = head:CreateTexture(nil, "ARTWORK")
-head.dot:SetTexture(W.MEDIA .. "circle")
-head.dot:SetSize(6, 6)
-head.dot:SetPoint("TOPLEFT", 12, -15)
-head.name = W.Text(head, "name", "text")
-head.name:SetPoint("TOPLEFT", 24, -10)
-head.meta = W.Text(head, "meta", "muted")
-head.meta:SetPoint("TOPLEFT", 12, -28)
-
-head.close = W.IconButton(head, "close", L["Close"], function() UI.Hide() end)
-head.close:SetPoint("RIGHT", -6, 0)
-head.vsep = W.Fill(head, "hair", "ARTWORK")
-head.vsep:SetSize(1, 14)
-head.vsep:SetPoint("RIGHT", head.close, "LEFT", -4, 0)
-W.Paint(head.vsep, function(t) t:SetWidth(W.Pixel(head)) end)
-head.more = W.IconButton(head, "more", L["More"], function(self) UI.MoreMenu(self) end)
-head.more:SetPoint("RIGHT", head.vsep, "LEFT", -4, 0)
-head.invite = W.IconButton(head, "invite", L["Invite to group"], function() UI.Invite() end)
-head.invite:SetPoint("RIGHT", head.more, "LEFT", -1, 0)
-head.name:SetPoint("RIGHT", head.invite, "LEFT", -8, 0)
-head.meta:SetPoint("RIGHT", head.invite, "LEFT", -8, 0)
-UI.header = head
-
--- WIM notice
-local notice = CreateFrame("Frame", nil, chat)
-notice:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 10, -8)
-notice:SetPoint("TOPRIGHT", head, "BOTTOMRIGHT", -10, -8)
-notice:SetHeight(28)
-notice.bg = W.Fill(notice, "accentWash")
-notice.bg:SetAllPoints()
-notice.bar = W.Fill(notice, "accent", "ARTWORK")
-notice.bar:SetPoint("TOPLEFT")
-notice.bar:SetPoint("BOTTOMLEFT")
-notice.bar:SetWidth(2)
-notice.text = W.Text(notice, "small", "text")
-notice.text:SetPoint("LEFT", 10, 0)
-notice.action = CreateFrame("Button", nil, notice)
-notice.action:SetPoint("RIGHT", -8, 0)
-notice.action.text = W.Text(notice.action, "small", "accent")
-notice.action.text:SetPoint("CENTER")
-notice.text:SetPoint("RIGHT", notice.action, "LEFT", -8, 0)
-notice:Hide()
-UI.notice = notice
-
--- Chat lockdown banner
-local banner = CreateFrame("Frame", nil, chat)
-banner:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 10, -8)
-banner:SetPoint("TOPRIGHT", head, "BOTTOMRIGHT", -10, -8)
-banner:SetHeight(34)
-banner.bg = W.Fill(banner, "warnBg")
-banner.bg:SetAllPoints()
-banner.bar = W.Fill(banner, "warning", "ARTWORK")
-banner.bar:SetPoint("TOPLEFT")
-banner.bar:SetPoint("BOTTOMLEFT")
-banner.bar:SetWidth(2)
-banner.icon = W.Icon(banner, "warn", 13, "warning")
-banner.icon:SetPoint("TOPLEFT", 10, -7)
-banner.text = W.Text(banner, "meta", "warningText")
-banner.text:SetPoint("TOPLEFT", 30, -6)
-banner.text:SetPoint("RIGHT", -8, 0)
-banner.text:SetWordWrap(true)
-banner.text:SetText(L["Boss fight: whispers can't be read by addons right now. They show in your chat and land here when it ends."])
-banner:Hide()
-UI.banner = banner
-
-local logFrame = CreateFrame("Frame", nil, chat)
-local composeFrame = CreateFrame("Frame", nil, chat)
-composeFrame:SetPoint("BOTTOMLEFT")
-composeFrame:SetPoint("BOTTOMRIGHT")
-composeFrame:SetHeight(42)
-logFrame:SetPoint("BOTTOMLEFT", composeFrame, "TOPLEFT")
-logFrame:SetPoint("BOTTOMRIGHT", composeFrame, "TOPRIGHT")
-
-function UI.Layout()
-    local top = head
-    if notice:IsShown() then top = notice end
-    if banner:IsShown() then
-        banner:ClearAllPoints()
-        banner:SetPoint("TOPLEFT", top, "BOTTOMLEFT", top == head and 10 or 0, -8)
-        banner:SetPoint("TOPRIGHT", top, "BOTTOMRIGHT", top == head and -10 or 0, -8)
-        banner:SetHeight(max(30, banner.text:GetStringHeight() + 12))
-        top = banner
-    end
-    logFrame:ClearAllPoints()
-    logFrame:SetPoint("TOPLEFT", top, "BOTTOMLEFT", top == head and 0 or -10, top == head and 0 or -2)
-    logFrame:SetPoint("TOPRIGHT", top, "BOTTOMRIGHT", top == head and 0 or 10, top == head and 0 or -2)
-    logFrame:SetPoint("BOTTOMLEFT", composeFrame, "TOPLEFT")
-    logFrame:SetPoint("BOTTOMRIGHT", composeFrame, "TOPRIGHT")
-    ns.Log.Render()
-end
+function UI.Layout() pane:Layout() end
 
 -------------------------------------------------------------------------------
 --  Settings and empty views
@@ -248,93 +153,19 @@ grip:SetScript("OnMouseUp", function()
 end)
 
 -------------------------------------------------------------------------------
---  New conversation: a name field over the header. Sotto never opens
---  Blizzard's chat box (see Core/Intercept.lua).
+--  New conversation: the name field over the header
 -------------------------------------------------------------------------------
-local prompt = CreateFrame("Frame", nil, main)
-prompt:SetPoint("TOPLEFT")
-prompt:SetPoint("TOPRIGHT")
-prompt:SetHeight(HEAD_H)
-prompt:SetFrameLevel(main:GetFrameLevel() + 30)
-prompt:EnableMouse(true)
-prompt.bg = W.Fill(prompt, "panel")
-prompt.bg:SetAllPoints()
-W.Hair(prompt, "BOTTOM", "accentLine")
-prompt.label = W.Text(prompt, "section", "muted")
-prompt.label:SetPoint("TOPLEFT", 12, -6)
-prompt.label:SetText(L["Whisper to"]:upper())
-prompt.close = W.IconButton(prompt, "close", L["Cancel"], function() UI.ClosePrompt() end)
-prompt.close:SetPoint("RIGHT", -6, 0)
-local promptField = CreateFrame("Frame", nil, prompt)
-promptField:SetPoint("TOPLEFT", 10, -19)
-promptField:SetPoint("BOTTOMRIGHT", prompt.close, "BOTTOMLEFT", -6, 1)
-promptField.bg = W.Fill(promptField, "inset")
-promptField.bg:SetAllPoints()
-W.Border(promptField, "focus")
-prompt.edit = CreateFrame("EditBox", nil, promptField)
-prompt.edit:SetAllPoints()
-prompt.edit:SetAutoFocus(false)
-prompt.edit:SetTextInsets(6, 6, 0, 0)
-W.Paint(prompt.edit, function(e)
-    e:SetFont(ns.Theme.Font("body"))
-    e:SetTextColor(ns.Theme.Color("text"))
-end)
-prompt.hint = W.Text(promptField, "body", "muted")
-prompt.hint:SetPoint("LEFT", 6, 0)
-prompt.hint:SetText(L["Name"])
-prompt:Hide()
-UI.prompt = prompt
-
--- The name as the game spells it: a known conversation, a friend, a guild
--- mate, else each word capitalised (the server's spelling replaces it with
--- the first message either way).
-local function properName(input)
-    local key = ns.Names.Key(input)
-    if not key then return nil end
-    local known = ns.Store.Get(key)
-    if known then return known.name end
-    if C_FriendList and C_FriendList.GetNumFriends then
-        for i = 1, C_FriendList.GetNumFriends() or 0 do
-            local f = C_FriendList.GetFriendInfoByIndex(i)
-            local n = type(f) == "table" and f.name
-            if not ns.IsSecret(n) and type(n) == "string" and ns.Names.Key(n) == key then return ns.Names.Display(n) end
-        end
-    end
-    if IsInGuild and IsInGuild() then
-        for i = 1, GetNumGuildMembers() or 0 do
-            local n = GetGuildRosterInfo(i)
-            if not ns.IsSecret(n) and type(n) == "string" and ns.Names.Key(n) == key then return ns.Names.Display(n) end
-        end
-    end
-    return (ns.Names.Display(input):gsub("(%a)([%w']*)", function(a, b) return a:upper() .. b:lower() end))
-end
-
 function UI.NewConversation()
     if not win:IsShown() then UI.Show() end
     if view == "settings" then UI.Show() end
-    prompt.edit:SetText("")
-    prompt.hint:Show()
-    prompt:Show()
-    prompt.edit:SetFocus()
+    pane:ShowPrompt()
 end
 
 function UI.ClosePrompt()
-    prompt.edit:ClearFocus()
-    prompt:Hide()
+    pane:ClosePrompt()
 end
 
-prompt.edit:SetScript("OnTextChanged", function(self) prompt.hint:SetShown(self:GetText() == "") end)
-prompt.edit:SetScript("OnEscapePressed", function() UI.ClosePrompt() end)
-prompt.edit:SetScript("OnEnterPressed", function(self)
-    local name = properName((self:GetText():gsub("^%s+", ""):gsub("%s+$", "")))
-    UI.ClosePrompt()
-    local conv = name and ns.Store.Ensure("w", name)
-    if conv then UI.Open(conv, { focus = true }) end
-end)
-
 ns.Rail.Build(rail)
-ns.Log.Build(logFrame)
-ns.Compose.Build(composeFrame)
 ns.Settings.Build(settings)
 
 -------------------------------------------------------------------------------
@@ -343,7 +174,7 @@ ns.Settings.Build(settings)
 function UI.View() return view end
 function UI.IsShown() return win:IsShown() end
 function UI.Active() return view == "chat" and active or nil end
-function UI.Typing(conv) return ns.Compose.HasFocus() and UI.Active() == conv end
+function UI.Typing(conv) return UI.compose:HasFocus() and UI.Active() == conv end
 
 function UI.ShowView(name)
     view = name
@@ -354,39 +185,7 @@ function UI.ShowView(name)
     ns.Rail.Refresh()
 end
 
-function UI.UpdateHeader()
-    local c = active
-    if not c then return end
-    head.name:SetText(ns.Contacts.Name(c))
-    local r, g, b = ns.Contacts.Color(c)
-    W.SetTextColor(head.name, { r, g, b })
-    if c.online == nil then
-        head.dot:Hide()
-        head.name:SetPoint("TOPLEFT", 12, -10)
-    else
-        head.dot:SetVertexColor(ns.Theme.Color(c.online and "success" or "offline"))
-        head.dot:Show()
-        head.name:SetPoint("TOPLEFT", 24, -10)
-    end
-    local sep = " |c" .. ns.Theme.Hex("faint") .. "·|r "
-    head.meta:SetText(table.concat(ns.Contacts.Meta(c), sep))
-    local canInvite = c.kind == "w" or (c.kind == "bn" and c.char ~= nil)
-    head.invite:SetEnabled(canInvite)
-    head.invite:SetAlpha(canInvite and 1 or 0.35)
-end
-
-local function firstUnreadIndex(conv)
-    local n = conv.unread or 0
-    if n <= 0 then return nil end
-    local count = 0
-    for i = #conv.msgs, 1, -1 do
-        if conv.msgs[i].d == "i" then
-            count = count + 1
-            if count == n then return i end
-        end
-    end
-    return 1
-end
+function UI.UpdateHeader() pane:UpdateHeader() end
 
 function UI.Select(conv)
     if not conv then return end
@@ -398,15 +197,9 @@ function UI.Select(conv)
         ns.Store.MarkRead(conv)
         return
     end
-    ns.Compose.SaveDraft()
-    local newIndex = firstUnreadIndex(conv)
     active = conv
-    ns.Store.MarkRead(conv)
     UI.ShowView("chat")
-    UI.UpdateHeader()
-    ns.Log.SetConv(conv, newIndex)
-    ns.Compose.SetConv(conv)
-    ns.Contacts.Refresh(conv)
+    pane:SetConv(conv)
 end
 
 -- Show the window on the last conversation, the newest one, or the empty view.
@@ -429,8 +222,8 @@ function UI.Open(conv, opts)
     if not conv then return UI.Show() end
     if not win:IsShown() then win:Show() end
     UI.Select(conv)
-    if opts.text then ns.Compose.SetText(opts.text) end
-    if opts.focus then ns.Compose.Focus() end
+    if opts.text then UI.compose:SetText(opts.text) end
+    if opts.focus then UI.compose:Focus() end
     ns.Toast.HideFor(conv)
     UI.Wake()
 end
@@ -445,7 +238,7 @@ end
 
 function UI.ShowSettings()
     if not win:IsShown() then win:Show() end
-    ns.Compose.SaveDraft()
+    UI.compose:SaveDraft()
     UI.ShowView("settings")
     UI.Wake()
 end
@@ -464,9 +257,9 @@ end
 function UI.SelectNext()
     local c = step(1)
     if c then
-        local focused = ns.Compose.HasFocus()
+        local focused = UI.compose:HasFocus()
         UI.Select(c)
-        if focused then ns.Compose.Focus() end
+        if focused then UI.compose:Focus() end
     end
 end
 
@@ -480,43 +273,8 @@ end
 -------------------------------------------------------------------------------
 --  Header actions
 -------------------------------------------------------------------------------
-local function transcript(conv)
-    local out = {}
-    for _, m in ipairs(conv.msgs) do
-        local who = m.d == "o" and L["You"] or (m.d == "s" and "*" or ns.Contacts.Name(conv))
-        out[#out + 1] = string.format("[%s %s] %s: %s", ns.Format.DayKey(m.t), ns.Format.Time(m.t), who,
-            ns.Format.Plain(m.m or ""))
-    end
-    return table.concat(out, "\n")
-end
-
-function UI.Invite()
-    local c = active
-    if not c then return end
-    local name = c.kind == "bn" and c.char or c.name
-    if not name then return end
-    local invite = (C_PartyInfo and C_PartyInfo.InviteUnit) or InviteUnit
-    if invite then invite(name) end
-end
-
-function UI.MoreMenu(anchor)
-    local c = active
-    if not c then return end
-    local items = {}
-    if c.kind == "w" then
-        items[#items + 1] = { text = L["Add friend"], func = function() C_FriendList.AddFriend(c.name) end }
-        items[#items + 1] = { text = L["Ignore"], func = function() C_FriendList.AddIgnore(c.name) end }
-    end
-    items[#items + 1] = { text = L["Copy name"], func = function()
-        ns.CopyBox.Show(L["Copy name"], c.kind == "bn" and (c.tag or ns.Contacts.Name(c)) or c.name)
-    end }
-    items[#items + 1] = { text = L["Copy conversation"], func = function()
-        ns.CopyBox.Show(L["Copy conversation"], transcript(c))
-    end }
-    items[#items + 1] = { text = L["Clear history"], func = function() ns.Store.Clear(c) end }
-    items[#items + 1] = { text = L["Close conversation"], color = "danger", func = function() ns.Store.Close(c) end }
-    W.Menu(anchor, items, 170, "RIGHT")
-end
+function UI.Invite() pane:Invite() end
+function UI.MoreMenu(anchor) pane:MoreMenu(anchor) end
 
 -------------------------------------------------------------------------------
 --  Position
@@ -551,108 +309,34 @@ function UI.ResetGeometry()
     if not ns.DB then return end
     for k, v in pairs(ns.DEFAULTS.window) do ns.DB.window[k] = v end
     UI.ApplyGeometry()
-    ns.Log.Refresh()
+    UI.log:Refresh()
 end
 
 win:SetScript("OnSizeChanged", function()
-    ns.Log.Refresh()
+    UI.log:Refresh()
     if view == "settings" then ns.Settings.Refresh() end
     ns.Rail.Refresh()
 end)
 
 -------------------------------------------------------------------------------
---  Idle fade (a 0.25 s check while shown; the tween runs only while moving)
+--  Idle fade
 -------------------------------------------------------------------------------
-local idleSince, targetAlpha = 0, 1
-local fadeTicker
+local fader = W.Fader(win, function() return UI.compose:HasFocus() end)
 
-local function tween(self, elapsed)
-    local cur = self:GetAlpha()
-    local d = targetAlpha - cur
-    local s = elapsed / FADE_TIME
-    if math.abs(d) <= s then
-        self:SetAlpha(targetAlpha)
-        self:SetScript("OnUpdate", nil)
-    else
-        self:SetAlpha(cur + (d > 0 and s or -s))
-    end
-end
-
-local function fadeTo(a)
-    if targetAlpha == a and win:GetAlpha() == a then return end
-    targetAlpha = a
-    win:SetScript("OnUpdate", tween)
-end
-
-local function awake()
-    if not ns.Get("fadeIdle") then return true end
-    if win:IsMouseOver() or ns.Compose.HasFocus() then return true end
-    local menu = W.CurrentMenu()
-    if menu and menu:IsShown() then return true end
-    return false
-end
-
-local function checkIdle()
-    if not win:IsShown() then return end
-    if awake() then
-        idleSince = GetTime()
-        fadeTo(1)
-    elseif GetTime() - idleSince >= IDLE_AFTER then
-        fadeTo(IDLE_ALPHA)
-    end
-end
-
-function UI.Wake()
-    idleSince = GetTime()
-    fadeTo(1)
-end
+function UI.Wake() fader:Wake() end
 
 win:SetScript("OnShow", function()
-    idleSince = GetTime()
-    win:SetAlpha(1)
-    targetAlpha = 1
-    if not fadeTicker then fadeTicker = C_Timer.NewTicker(0.25, checkIdle) end
+    fader:Start()
     ns.Toast.HideAll()
     ns.Rail.Refresh()
     ns.Contacts.ScheduleRefresh()
 end)
 
 win:SetScript("OnHide", function()
-    if fadeTicker then fadeTicker:Cancel(); fadeTicker = nil end
-    win:SetScript("OnUpdate", nil)
-    ns.Compose.SaveDraft()
-    if ns.Compose.HasFocus() then ns.Compose.box:ClearFocus() end
+    fader:Stop()
+    UI.compose:SaveDraft()
+    if UI.compose:HasFocus() then UI.compose.box:ClearFocus() end
     W.CloseMenu()
-end)
-
--------------------------------------------------------------------------------
---  WIM
--------------------------------------------------------------------------------
-local function updateNotice()
-    if wimState == "on" then
-        notice.text:SetText(L["WIM is running too, so whispers arrive twice."])
-        notice.action.text:SetText(L["Turn off WIM"])
-    elseif wimState == "off" then
-        notice.text:SetText(L["WIM turns off after a reload."])
-        notice.action.text:SetText(L["Reload now"])
-    end
-    notice.action:SetSize(floor(notice.action.text:GetStringWidth()) + 12, 20)
-    notice:SetShown(wimState ~= nil)
-    UI.Layout()
-end
-
-notice.action:SetScript("OnClick", function()
-    if wimState == "on" then
-        local disable = (C_AddOns and C_AddOns.DisableAddOn) or DisableAddOn
-        if disable then
-            disable("WIM")
-            disable("EllesmereSkin_WIM")
-        end
-        wimState = "off"
-        updateNotice()
-    elseif wimState == "off" then
-        ReloadUI()
-    end
 end)
 
 -------------------------------------------------------------------------------
@@ -672,13 +356,13 @@ ns.Listen("INCOMING", function(conv, msg, wantOpen)
 end)
 
 ns.Listen("MESSAGE_ADDED", function(conv)
-    if conv == active and view == "chat" then ns.Log.OnMessage(conv) end
+    if conv == active and view == "chat" then UI.log:OnMessage(conv) end
 end)
 
 ns.Listen("CONV_UPDATED", function(conv)
     if active and not active.open then
         -- The keyboard must not carry on into another conversation.
-        if ns.Compose.HasFocus() then ns.Compose.box:ClearFocus() end
+        if UI.compose:HasFocus() then UI.compose.box:ClearFocus() end
         local list = ns.Store.List()
         if win:IsShown() and list[1] then
             UI.Select(list[1])
@@ -687,7 +371,7 @@ ns.Listen("CONV_UPDATED", function(conv)
             if view == "chat" then UI.ShowView("empty") end
         end
     elseif conv == active and view == "chat" then
-        ns.Log.Refresh()
+        UI.log:Refresh()
         UI.UpdateHeader()
     end
     ns.Rail.Refresh()
@@ -710,17 +394,14 @@ ns.Listen("OUTGOING", function(conv, opens)
     if not opens then return end
     if not win:IsShown() then
         UI.Open(conv)
-    elseif view ~= "settings" and active ~= conv and not ns.Compose.HasFocus() then
+    elseif view ~= "settings" and active ~= conv and not UI.compose:HasFocus() then
         UI.Select(conv)
     end
 end)
 
-ns.Listen("LOCKDOWN_CHANGED", function(locked)
-    banner:SetShown(locked)
-    UI.Layout()
+ns.Listen("COMPOSE_FOCUS", function(_, compose)
+    if compose == UI.compose then UI.Wake() end
 end)
-
-ns.Listen("COMPOSE_FOCUS", function() UI.Wake() end)
 
 -- Into the gamepad interface: the controller cannot reach the window or the
 -- notifications, and the game's own chat takes the whispers from now on.
@@ -739,10 +420,5 @@ ns.Listen("SCALE_CHANGED", function() UI.ApplyGeometry() end)
 
 ns.On("PLAYER_LOGIN", function()
     UI.ApplyGeometry()
-    local loaded = C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded
-    if loaded and loaded("WIM") then
-        wimState = "on"
-        updateNotice()
-    end
     UI.Layout()
 end)

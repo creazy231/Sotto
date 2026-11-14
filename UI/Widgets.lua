@@ -238,6 +238,75 @@ function W.Shadow(frame, size, alpha)
 end
 
 -------------------------------------------------------------------------------
+--  Idle fade ("Fade when idle"): 4 s without the mouse over the frame, its
+--  keyboard (busy) or an open menu, and it fades to 42 %; anything that wakes
+--  it brings it back. A 0.25 s check while shown; the tween runs only while
+--  the alpha moves.
+--    W.Fader(frame, busy) -> fader   fader:Start() when shown, :Stop() when
+--                                    hidden, :Wake()
+-------------------------------------------------------------------------------
+local IDLE_AFTER, IDLE_ALPHA, FADE_TIME = 4, 0.42, 0.3
+
+function W.Fader(frame, busy)
+    local f = { idleSince = 0, target = 1 }
+
+    local function tween(self, elapsed)
+        local cur = self:GetAlpha()
+        local d = f.target - cur
+        local s = elapsed / FADE_TIME
+        if math.abs(d) <= s then
+            self:SetAlpha(f.target)
+            self:SetScript("OnUpdate", nil)
+        else
+            self:SetAlpha(cur + (d > 0 and s or -s))
+        end
+    end
+
+    local function fadeTo(a)
+        if f.target == a and frame:GetAlpha() == a then return end
+        f.target = a
+        frame:SetScript("OnUpdate", tween)
+    end
+
+    local function awake()
+        if not ns.Get("fadeIdle") then return true end
+        if frame:IsMouseOver() or (busy and busy()) then return true end
+        local menu = W.CurrentMenu()
+        if menu and menu:IsShown() then return true end
+        return false
+    end
+
+    local function check()
+        if not frame:IsShown() then return end
+        if awake() then
+            f.idleSince = GetTime()
+            fadeTo(1)
+        elseif GetTime() - f.idleSince >= IDLE_AFTER then
+            fadeTo(IDLE_ALPHA)
+        end
+    end
+
+    function f:Wake()
+        self.idleSince = GetTime()
+        fadeTo(1)
+    end
+
+    function f:Start()
+        self.idleSince = GetTime()
+        frame:SetAlpha(1)
+        self.target = 1
+        if not self.ticker then self.ticker = C_Timer.NewTicker(0.25, check) end
+    end
+
+    function f:Stop()
+        if self.ticker then self.ticker:Cancel(); self.ticker = nil end
+        frame:SetScript("OnUpdate", nil)
+    end
+
+    return f
+end
+
+-------------------------------------------------------------------------------
 --  Tooltips (GameTooltip: EllesmereUI skins it)
 -------------------------------------------------------------------------------
 function W.Tip(owner, title, lines, anchor)

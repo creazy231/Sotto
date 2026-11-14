@@ -57,7 +57,7 @@ T.it("Whisper in the menu of a player from another realm opens that conversation
     T.ok(c, "conversation open")
     T.eq(c.key, ns.Names.Key("Kim-TwistingNether"))
     T.eq(c.name, "Kim-TwistingNether")
-    T.eq(W.focus, ns.Compose.box, "ready to type")
+    T.eq(W.focus, ns.UI.compose.box, "ready to type")
     T.eq(#W.menuWhispers, 0, "Blizzard's whisper did not run")
 end)
 

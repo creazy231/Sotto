@@ -11,7 +11,7 @@ end
 
 local function itemsOf(ns, kind)
     local n = 0
-    for _, it in ipairs(ns.Log.items) do if it.kind == kind then n = n + 1 end end
+    for _, it in ipairs(ns.UI.log.items) do if it.kind == kind then n = n + 1 end end
     return n
 end
 
@@ -50,7 +50,7 @@ T.it("a whisper in combat shows a toast; clicking it opens and focuses", functio
     toast:Click("LeftButton")
     T.ok(UI.IsShown())
     T.eq(UI.Active(), ns.Store.Get("kaja stormhoof"))
-    T.eq(W.focus, ns.Compose.box, "compose focused")
+    T.eq(W.focus, ns.UI.compose.box, "compose focused")
     T.eq(#ns.Toast.active, 0, "toast gone")
 end)
 
@@ -94,7 +94,7 @@ T.it("log groups runs within 5 minutes and adds day separators", function()
     T.eq(itemsOf(ns, "day"), 1)
     T.eq(itemsOf(ns, "head"), 3)
     T.eq(itemsOf(ns, "line"), 4)
-    T.ok(#ns.Log.rows > 0, "rows drawn")
+    T.ok(#ns.UI.log.rows > 0, "rows drawn")
 end)
 
 T.it("the New divider marks the first unread message", function()
@@ -108,15 +108,15 @@ T.it("the New divider marks the first unread message", function()
     ns.Store.MarkUnread(c, 2)
     UI.Open(c)
     local before
-    for i, it in ipairs(ns.Log.items) do
-        if it.kind == "new" then before = ns.Log.items[i + 1] or ns.Log.items[i + 2] end
+    for i, it in ipairs(ns.UI.log.items) do
+        if it.kind == "new" then before = ns.UI.log.items[i + 1] or ns.UI.log.items[i + 2] end
     end
     T.ok(before, "divider present")
     local nextLine
-    for i, it in ipairs(ns.Log.items) do
+    for i, it in ipairs(ns.UI.log.items) do
         if it.kind == "new" then
-            for j = i + 1, #ns.Log.items do
-                if ns.Log.items[j].kind == "line" then nextLine = ns.Log.items[j]; break end
+            for j = i + 1, #ns.UI.log.items do
+                if ns.UI.log.items[j].kind == "line" then nextLine = ns.UI.log.items[j]; break end
             end
         end
     end
@@ -132,7 +132,7 @@ T.it("divider lines are one pixel high", function()
     ns.Store.MarkUnread(c, 1)
     UI.Open(c)
     local seen = {}
-    for _, r in ipairs(ns.Log.rows) do
+    for _, r in ipairs(ns.UI.log.rows) do
         if r.kind == "new" then
             seen.new = true
             T.near(r.line:GetHeight(), 768 / 1080, 1e-6, "New line height")
@@ -148,7 +148,7 @@ T.it("Enter in the compose box sends, keeps focus, and Up recalls", function()
     local G, W, ns, UI = load()
     W.resting = true
     UI.Open(ns.Store.Ensure("w", "Tarin Ashgrove"), { focus = true })
-    local box = ns.Compose.box
+    local box = ns.UI.compose.box
     box:SetText("hello there")
     box:_fire("OnEnterPressed")
     T.eq(#W.sent, 1)
@@ -165,7 +165,7 @@ end)
 T.it("Enter on an empty box and Esc leave it", function()
     local G, W, ns, UI = load()
     UI.Open(ns.Store.Ensure("w", "Tarin Ashgrove"), { focus = true })
-    local box = ns.Compose.box
+    local box = ns.UI.compose.box
     box:_fire("OnEnterPressed")
     T.no(W.focus, "left on empty Enter")
     box:SetFocus()
@@ -176,18 +176,18 @@ end)
 T.it("opening with text carries the draft over", function()
     local G, W, ns, UI = load()
     UI.Open(ns.Store.Ensure("w", "Tarin Ashgrove"), { focus = true, text = "typed in chat" })
-    T.eq(ns.Compose.box:GetText(), "typed in chat")
+    T.eq(ns.UI.compose.box:GetText(), "typed in chat")
 end)
 
 T.it("drafts stay with their conversation", function()
     local G, W, ns, UI = load()
     local a, b = ns.Store.Ensure("w", "Aaa"), ns.Store.Ensure("w", "Bbb")
     UI.Open(a)
-    ns.Compose.box:SetText("for a")
+    ns.UI.compose.box:SetText("for a")
     UI.Open(b)
-    T.eq(ns.Compose.box:GetText(), "")
+    T.eq(ns.UI.compose.box:GetText(), "")
     UI.Open(a)
-    T.eq(ns.Compose.box:GetText(), "for a")
+    T.eq(ns.UI.compose.box:GetText(), "for a")
 end)
 
 T.it("lockdown shows the banner and pauses sending", function()
@@ -196,11 +196,11 @@ T.it("lockdown shows the banner and pauses sending", function()
     W.lockdown = true
     W.fire("ENCOUNTER_START")
     T.ok(UI.banner:IsShown(), "banner")
-    T.ok(ns.Compose.placeholder:GetText():find("Paused", 1, true), "paused placeholder")
-    ns.Compose.box:SetText("later")
-    ns.Compose.box:_fire("OnEnterPressed")
+    T.ok(ns.UI.compose.placeholder:GetText():find("Paused", 1, true), "paused placeholder")
+    ns.UI.compose.box:SetText("later")
+    ns.UI.compose.box:_fire("OnEnterPressed")
     T.eq(#W.sent, 0)
-    T.eq(ns.Compose.box:GetText(), "later", "draft kept")
+    T.eq(ns.UI.compose.box:GetText(), "later", "draft kept")
     W.lockdown = false
     W.fire("ENCOUNTER_END")
     T.no(UI.banner:IsShown(), "banner gone")
@@ -263,7 +263,7 @@ T.it("clicking a URL opens the copy box", function()
     local G, W, ns, UI = load()
     whisper(W, "see https://polestar.guide/community", "Aaa")
     local row
-    for _, r in ipairs(ns.Log.rows) do if r.kind == "line" then row = r end end
+    for _, r in ipairs(ns.UI.log.rows) do if r.kind == "line" then row = r end end
     T.ok(row, "line row")
     row:_fire("OnHyperlinkClick", "sotto:url:https://polestar.guide/community", "x", "LeftButton")
     T.ok(G.SottoCopyBox:IsShown(), "copy box")
@@ -274,7 +274,7 @@ T.it("other links go to SetItemRef with the row as the frame", function()
     local G, W, ns, UI = load()
     whisper(W, "|cffffffff|Hitem:2581|h[Heavy Linen Bandage]|h|r", "Aaa")
     local row
-    for _, r in ipairs(ns.Log.rows) do if r.kind == "line" then row = r end end
+    for _, r in ipairs(ns.UI.log.rows) do if r.kind == "line" then row = r end end
     row:_fire("OnHyperlinkClick", "item:2581", "[Heavy Linen Bandage]", "LeftButton")
     T.eq(W.itemRef[1], "item:2581")
 end)
@@ -347,7 +347,7 @@ T.it("the second reply binding opens the last person you whispered", function()
     W.combat = false
     G.Sotto_BindingReplySent()
     T.eq(UI.Active().key, "bbb")
-    T.eq(W.focus, ns.Compose.box)
+    T.eq(W.focus, ns.UI.compose.box)
 end)
 
 T.it("the reply binding opens the last whisper with focus", function()
@@ -357,7 +357,7 @@ T.it("the reply binding opens the last whisper with focus", function()
     G.Sotto_BindingReply()
     T.ok(UI.IsShown())
     T.eq(UI.Active().key, "aaa")
-    T.eq(W.focus, ns.Compose.box)
+    T.eq(W.focus, ns.UI.compose.box)
 end)
 
 T.it("the More menu stays inside the window", function()
@@ -408,7 +408,7 @@ end)
 T.it("Enter releases the keyboard in combat and outside rested areas", function()
     local G, W, ns, UI = load()
     UI.Open(ns.Store.Ensure("w", "Aaa"), { focus = true })
-    local box = ns.Compose.box
+    local box = ns.UI.compose.box
     W.resting = false
     box:SetText("one")
     box:_fire("OnEnterPressed")
@@ -471,7 +471,7 @@ T.it("+ starts a conversation in Sotto without Blizzard's chat box", function()
     prompt.edit:_fire("OnEnterPressed")
     T.no(prompt:IsShown(), "name field closed")
     T.eq(UI.Active().key, "tarin ashgrove")
-    T.eq(W.focus, ns.Compose.box, "ready to type")
+    T.eq(W.focus, ns.UI.compose.box, "ready to type")
     T.no(G.ChatFrame1EditBox:IsShown(), "Blizzard's chat box untouched")
 end)
 
@@ -524,7 +524,7 @@ T.it("no fading with the setting off or while typing", function()
     for _ = 1, 30 do W.advance(0.25) end
     T.eq(UI.win:GetAlpha(), 1)
     ns.Set("fadeIdle", true)
-    ns.Compose.box:SetFocus()
+    ns.UI.compose.box:SetFocus()
     for _ = 1, 30 do W.advance(0.25) end
     T.eq(UI.win:GetAlpha(), 1)
 end)
@@ -547,12 +547,12 @@ T.it("rows stay inside the log after a resize", function()
     UI.Open(c)
     UI.win:SetSize(360, 240)
     UI.win:_fire("OnSizeChanged", 360, 240)
-    local logLeft = ns.Log.frame:GetLeft()
-    local logRight = ns.Log.frame:GetRight()
-    for _, r in ipairs(ns.Log.rows) do
+    local logLeft = ns.UI.log.frame:GetLeft()
+    local logRight = ns.UI.log.frame:GetRight()
+    for _, r in ipairs(ns.UI.log.rows) do
         T.ok(r:GetLeft() >= logLeft - 0.5 and r:GetRight() <= logRight + 0.5, "row within the log")
     end
-    T.ok(#ns.Log.rows < 30, "only visible rows are drawn")
+    T.ok(#ns.UI.log.rows < 30, "only visible rows are drawn")
 end)
 
 T.it("the empty view shows when there is nothing to show", function()

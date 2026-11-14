@@ -44,8 +44,9 @@ built window must stay pixel-close to the approved mockup
 ## Non-goals
 
 - Channel, guild, party or raid chat windows (WIM's chat module).
-- Emoticons, RP profiles, spam filters, a history browser, multiple windows, skins,
-  Edit Mode integration, `/who` lookups.
+- Emoticons, RP profiles, spam filters, a history browser, skins, Edit Mode integration,
+  `/who` lookups. (A window per conversation was one too, until the user asked for it on
+  2026-11-15: "Separate windows" below.)
 
 ## Anti-goals (failure even if it "works")
 
@@ -226,6 +227,57 @@ reskinning WIM further (keeps WIM's options and complexity) or forking WIM (huge
     changes nothing on screen. By hand (`/sotto`, the minimap button, the compartment) the
     window still opens. Settings show a row at the top ("Gamepad interface style"), and the
     whisper-tab hint stays hidden there.
+
+## Separate windows (2026-11-15)
+
+The user's words: "an option inside settings to have (just like WIM) every whisper in its own
+windows. off by default. these windows then could be minimized or with shift click closed
+(then no history is stored / history gets deleted)". Built while the user was away; every
+call below is mine.
+
+WIM, read from its source (3.19.5, `Sources/WindowHandler.lua`): a click on a window's close
+button hides it to the minimap icon (the conversation stays), shift-click destroys it (its
+lines are gone); the button's glyph turns from "hide" to "close" while shift is held
+(EllesmereSkin_WIM draws them as a bar and a red cross); Esc hides every window; the minimap
+icon lists the conversations.
+
+- **Setting:** Look → "Separate windows" (a switch, off), first in that section: "Each
+  conversation in its own window, as in WIM". Eleven settings.
+- **A conversation's window** is the chat column of the approved window, unchanged (header,
+  notices, log, compose box), plus the rail's 28 px class tile at the left of its header
+  (the window has no rail beside it). Its last header button is "–": a click minimises the
+  window, shift-click closes the conversation and deletes its history, its draft and its saved
+  place. While shift is held over it, it turns into a red cross and its tooltip says so.
+  The "…" menu's last entry, "Close and delete history", does the same.
+- **Minimised** = hidden, the conversation kept (WIM's hide): its badge stays in the dock,
+  a whisper counts unread there and on the minimap button, and opens the window again as
+  "Open the window" says (Always / Out of combat / Never; else the notification card).
+- **The dock:** with the option on, the window is the rail alone (46 px wide, as tall as its
+  conversations, at most the window's height, growing upwards from its saved corner): the
+  mark (drag), a badge per conversation (open windows carry the accent bar), "+" and the gear.
+  The minimap button, `/sotto`, the compartment and the Toggle key show and hide it, as they
+  did the window. A badge's click opens its window, shift-click or the middle button closes
+  and deletes, the right button gives Open, Clear history, Close and delete history. The gear
+  opens the settings at the window's full size; their close docks again. "+" opens a new
+  window with the "Whisper to" field over its header; Enter makes it that conversation's
+  window (or brings the window it already has), Esc lets it go.
+- **Places:** the first window opens where the chat column of the window would be, at its
+  size; the next ones step 26 px right and down from there (the first free step). A window
+  the player moved or resized keeps that place for its conversation, saved with it
+  (`conv.win`: corner in UIParent's units, size in its own), so it comes back there; a closed
+  conversation forgets it. Scale works as for the window: the corner stays put.
+- **Everything else follows the conversation's window:** the reply keys, "Whisper" in menus,
+  the group finder, a whisper sent from chat and a notification's click open or focus it; a
+  shown window counts as read; typing in it mutes the chime for it; Tab moves to the next open
+  window; Esc minimises every window (WIM's escape); the gamepad interface hides them; the
+  lockdown banner and the WIM notice show in each.
+- **Switching:** on: a conversation shown in the window moves into its own window at the
+  same place, the window docks. Off: the separate windows close and the window shows the one
+  used last. Drafts are per conversation either way.
+- **Closing keeps meaning what it meant in the rail window** (hidden from the rail, history
+  kept until "Remember conversations" drops it); only separate windows delete on close, as
+  the user asked. A closed conversation stays known by name (empty), so the reply key opens
+  that person again and not someone else.
 
 ## Left to the builder
 
