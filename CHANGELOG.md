@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.0 (unreleased)
+## 1.2.0
 
 - Scale in the settings (Look): 50 to 200 %, for the window, its menus, the notifications
   and the copy box. The window keeps its bottom-left corner where it is, and the
