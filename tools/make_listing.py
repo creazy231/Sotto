@@ -43,7 +43,7 @@ SHOTS = [
         sub="Whispers wait in your chat|and land here when the fight ends.")),
     ("05-settings", "settings", dict(
         bg="bg-sunset.jpg", layout="right", eyebrow="Settings",
-        title="*Nine* settings.|That's all.",
+        title="*Ten* settings.|That's all.",
         sub="Only what matters,|right inside the window.")),
     ("06-empty", "empty", dict(
         bg="bg-canyon.jpg", layout="left", eyebrow="Made for WoW Forever",

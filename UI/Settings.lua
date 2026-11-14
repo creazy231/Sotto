@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
---  Sotto: the settings view (the gear in the rail). Nine settings in four
+--  Sotto: the settings view (the gear in the rail). Ten settings in four
 --  sections, the rows of the approved mockup: label, a small description,
 --  the control on the right, a faint line between rows. In WoW Forever's
 --  gamepad interface a row above them says that the game's own chat is used.
@@ -9,7 +9,7 @@ local St = {}
 ns.Settings = St
 
 local W, L = ns.W, ns.L
-local ceil, max = math.ceil, math.max
+local ceil, floor, max, min = math.ceil, math.floor, math.max, math.min
 
 St.controls = {}
 local view, scroll, content, thumb
@@ -32,6 +32,48 @@ local function preview(v)
     elseif v == "game" then
         PlaySound(SOUNDKIT.TELL_MESSAGE, "Master")
     end
+end
+
+-------------------------------------------------------------------------------
+--  Scale, 50 to 200 % in steps of 5. The slider sits in the window it scales:
+--  dragging the knob would rescale the window, and the slider in it, under
+--  the cursor, and the scale would chase itself. So a scale picked with the
+--  mouse held shows on the slider and applies when the mouse lets go (or the
+--  slider hides); the wheel applies at once.
+-------------------------------------------------------------------------------
+local SCALE_MIN, SCALE_MAX, SCALE_STEP = 50, 200, 5
+
+local function percent(v) return v .. "%" end
+
+-- The scale Sotto has, in percent as the slider has it.
+local function scaleNow()
+    local p = floor(W.Scale() * 100 / SCALE_STEP + 0.5) * SCALE_STEP
+    return max(SCALE_MIN, min(SCALE_MAX, p))
+end
+
+local function scaleSlider(parent)
+    local holding, held = false, nil
+    local slider = W.Slider(parent, SCALE_MIN, SCALE_MAX, SCALE_STEP,
+        function() return held or scaleNow() end,
+        function(p)
+            if holding then held = p else ns.Set("scale", p / 100) end
+        end, percent)
+    local down, up = slider:GetScript("OnMouseDown"), slider:GetScript("OnMouseUp")
+    local function letGo(self)
+        up(self)
+        holding = false
+        local p = held
+        held = nil
+        if p then ns.Set("scale", p / 100) end
+        self:Refresh()
+    end
+    slider:SetScript("OnMouseDown", function(self, ...)
+        holding = true
+        down(self, ...)
+    end)
+    slider:SetScript("OnMouseUp", letGo)
+    slider:SetScript("OnHide", function(self) if holding then letGo(self) end end)
+    return slider
 end
 
 -------------------------------------------------------------------------------
@@ -186,7 +228,10 @@ function St.Build(v)
         { value = "class", text = L["Class colour"] }, { value = "eui", text = L["EllesmereUI"] },
     }, getter("accent"), setter("accent"))
     row(L["Accent"], nil, C.accent)
-    C.fontSize = W.Slider(content, 11, 16, 1, getter("fontSize"), setter("fontSize"))
+    C.scale = scaleSlider(content)
+    row(L["Scale"], nil, C.scale)
+    -- As much room for its value as Scale's: the two tracks line up.
+    C.fontSize = W.Slider(content, 11, 16, 1, getter("fontSize"), setter("fontSize"), nil, C.scale.room)
     row(L["Text size"], nil, C.fontSize)
     C.fadeIdle = W.Switch(content, getter("fadeIdle"), setter("fadeIdle"))
     row(L["Fade when idle"], L["Fades while you are not using it"], C.fadeIdle)

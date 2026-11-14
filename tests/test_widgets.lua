@@ -48,6 +48,31 @@ T.it("slider clamps and steps", function()
     T.eq(sl.value:GetText(), "12")
 end)
 
+T.it("a slider shows its value through a format, with room for the widest", function()
+    local G, W, ns, Wd, parent = load()
+    local v = 100
+    local sl = Wd.Slider(parent, 50, 200, 5, function() return v end, function(x) v = x end,
+        function(x) return x .. "%" end)
+    T.eq(sl.value:GetText(), "100%")
+    sl.value:SetText("200%")
+    local need = sl.value:GetStringWidth()
+    sl:Refresh()
+    T.ok(sl.room >= need, "room for 200%")
+    T.near(sl.track:GetRight(), sl:GetRight() - 10 - sl.room, 1e-9, "the track ends 10 px before it")
+    v = 50
+    sl:Refresh()
+    T.eq(sl.value:GetText(), "50%")
+    T.eq(sl.value:GetWidth(), sl.value:GetStringWidth(), "the value as wide as its text: never cut off")
+    T.eq(select(1, sl.value:GetPoint(1)), "RIGHT")
+    local plain = Wd.Slider(parent, 11, 16, 1, function() return 13 end, function() end)
+    T.eq(plain:GetWidth(), 104, "a slider without a format as before")
+    T.eq(plain.room, 20)
+    T.eq(plain.track:GetWidth(), sl.track:GetWidth(), "every track as long")
+    local wide = Wd.Slider(parent, 11, 16, 1, function() return 13 end, function() end, nil, sl.room)
+    T.eq(wide:GetWidth(), sl:GetWidth(), "given the other's room, as wide")
+    T.eq(wide.value:GetText(), "13")
+end)
+
 T.it("dropdown opens a menu and sets the value", function()
     local G, W, ns, Wd, parent = load()
     local v = "chime"

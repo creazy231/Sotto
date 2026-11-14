@@ -107,9 +107,19 @@ reskinning WIM further (keeps WIM's options and complexity) or forking WIM (huge
   hover 7 %, selected 11 %. Contact and accent colours lifted to 4.5:1 on the panel.
 - **Fonts:** EllesmereUI's font, no outline, 1 px shadow; names in "Expressway Bold" when
   the EUI font is Expressway (falls back to the regular font). Without EUI: the game font.
-- **Settings (9):** Open the window (Always / Out of combat / Never), Sound (Soft chime /
-  Game whisper / None), Hide whispers from the chat window, Use Sotto to whisper, Accent (Class colour / EllesmereUI), Text size (11–16), Fade when idle,
+- **Settings (10):** Open the window (Always / Out of combat / Never), Sound (Soft chime /
+  Game whisper / None), Hide whispers from the chat window, Use Sotto to whisper, Accent (Class colour / EllesmereUI), Scale (50–200 %), Text size (11–16), Fade when idle,
   Remember conversations (Until logout / 7 / 30 / 90 days), Minimap button.
+- **Scale** (2026-11-14, the user's request): 50 to 200 % in steps of 5, default 100 %, for
+  everything Sotto draws on UIParent: the window, its menu, the notifications and the copy
+  box (not the minimap button, which follows the minimap). The window's bottom-left corner
+  stays put (its position is saved in UIParent's units, the anchor's offsets divided by the
+  scale); the notifications stack up from that corner at the same scale. The slider sits in
+  the window it scales, so a knob dragged with the mouse held applies when it is let go (the
+  window would otherwise grow under the cursor); the wheel applies at once. A new scale
+  repaints everything, so every hairline stays one physical pixel. Its track lines up with
+  Text size's (the same room for the value). `/sotto reset` resets position and size, not
+  the scale.
 - **Timestamps** are not a setting: the time sits next to each name.
 - **No auto-focus** on incoming whispers; focus only when the player asked (reply key,
   click on a notification, `/w`, clicking the box).

@@ -22,7 +22,7 @@ Everything to paste into the CurseForge project form (authors.curseforge.com).
 2. `screenshots/02-new-whisper.png` — See what's new at a glance: unread counts on every badge, a "New" line in the chat.
 3. `screenshots/03-notification.png` — Stays out of your fight: in combat a small card slides in instead of the window.
 4. `screenshots/04-boss-fight.png` — Boss fight? Nothing gets lost: whispers wait in your chat and land in Sotto when the fight ends.
-5. `screenshots/05-settings.png` — Nine settings. That's all.
+5. `screenshots/05-settings.png` — Ten settings. That's all.
 6. `screenshots/06-empty.png` — Fits right into your UI: EllesmereUI's colours and font, or your class colour.
 
 The images carry their headline; `python3 -I tools/make_listing.py <render-dir>` renders them again
@@ -44,7 +44,7 @@ A whisper messenger for World of Warcraft, in the spirit of WIM, with only the o
 - **Stays out of your way.** Out of combat the window opens on a new whisper; in combat a small card slides in instead. No keyboard focus is taken unless you ask for it. The window fades while you are not using it.
 - **Your whispers, your window.** Your reply key and "Whisper" in a player menu open Sotto right away, and a whisper you start from the chat box continues there. Whispers are hidden from the normal chat window.
 - **Remembers.** Conversations survive reloads and logouts (7, 30 or 90 days, or until logout).
-- **Matches your UI.** With EllesmereUI it follows your panel colour, font and accent live; the accent can also be your class colour. Works without EllesmereUI too.
+- **Matches your UI.** With EllesmereUI it follows your panel colour, font and accent live; the accent can also be your class colour. Works without EllesmereUI too. Scale it from 50 to 200 % in its settings.
 - **Every game version.** Retail, Classic Era, Anniversary, Mists of Pandaria Classic, Cataclysm, Wrath, Titan-Reforged and WoW Forever.
 
 ## Boss fights

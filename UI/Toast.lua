@@ -2,7 +2,8 @@
 --  Sotto: notification cards for whispers that do not open the window (in
 --  combat, or with "Open the window" set to Never). One card per
 --  conversation ("+N" counts the rest), at most three, stacked upward from
---  the window's bottom-left corner. They last 8 s; hovering pauses them.
+--  the window's bottom-left corner, at its scale (the Scale setting). They
+--  last 8 s; hovering pauses them.
 --  Left click opens the conversation ready to type, right click dismisses.
 -------------------------------------------------------------------------------
 local _, ns = ...
@@ -20,11 +21,14 @@ local function anchor()
     return (g and g.x) or 22, (g and g.y) or 328
 end
 
+-- The corner is in UIParent's units, a card's offsets in its own (they grow
+-- with its scale): the corner is divided by the scale, the stacking is not.
 local function layout()
     local x, y = anchor()
+    local s = W.Scale()
     for i, t in ipairs(Ts.active) do
         t:ClearAllPoints()
-        t:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x, y + (i - 1) * (t:GetHeight() + GAP))
+        t:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x / s, y / s + (i - 1) * (t:GetHeight() + GAP))
     end
 end
 
@@ -34,7 +38,7 @@ local function startTimer(t, seconds)
 end
 
 local function create()
-    local t = CreateFrame("Button", nil, UIParent)
+    local t = W.Scaled(CreateFrame("Button", nil, UIParent))
     t:SetSize(308, 58)
     t:SetFrameStrata("DIALOG")
     t:SetClampedToScreen(true)
@@ -170,3 +174,5 @@ function Ts.HideFor(conv)
         if Ts.active[i].conv == conv then Ts.Dismiss(Ts.active[i]) end
     end
 end
+
+ns.Listen("SCALE_CHANGED", layout)

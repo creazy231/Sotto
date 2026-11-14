@@ -3,7 +3,8 @@
 --  the rail on the left; on the right one of three views: a conversation
 --  (header, notices, log, compose box), the settings, or the empty view.
 --  It moves by its header or the mark, resizes from the corner, closes with
---  Esc, remembers where it was, and fades while idle. In WoW Forever's gamepad
+--  Esc, remembers where it was, takes the Scale setting (its bottom-left
+--  corner stays put), and fades while idle. In WoW Forever's gamepad
 --  interface (ns.Gamepad) no whisper opens it or a notification, and the
 --  switch to that interface closes both; by hand it still opens.
 -------------------------------------------------------------------------------
@@ -24,7 +25,7 @@ local wimState      -- nil | "on" | "off" (WIM disabled, reload pending)
 -------------------------------------------------------------------------------
 --  Frame
 -------------------------------------------------------------------------------
-local win = CreateFrame("Frame", "SottoWindow", UIParent)
+local win = W.Scaled(CreateFrame("Frame", "SottoWindow", UIParent))
 UI.win = win
 win:SetSize(410, 306)
 win:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 22, 328)
@@ -520,12 +521,17 @@ end
 -------------------------------------------------------------------------------
 --  Position
 -------------------------------------------------------------------------------
+-- The bottom-left corner is saved in UIParent's units, the size in the
+-- window's own. The anchor's offsets are in the window's units, which grow
+-- with its scale, so they are divided by it: the corner stays where it was
+-- saved, whatever the scale.
 function UI.ApplyGeometry()
     local g = ns.DB and ns.DB.window
     if not g then return end
+    local s = W.Scale()
     win:SetSize(g.w or 410, g.h or 306)
     win:ClearAllPoints()
-    win:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", g.x or 22, g.y or 328)
+    win:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", (g.x or 22) / s, (g.y or 328) / s)
 end
 
 function UI.SavePosition()
@@ -533,11 +539,12 @@ function UI.SavePosition()
     if not g then return end
     local left, bottom = win:GetLeft(), win:GetBottom()
     if not left or not bottom then return end
+    local s = W.Scale() -- GetLeft and GetBottom are in the window's units
     g.point = "BOTTOMLEFT"
-    g.x, g.y = floor(left + 0.5), floor(bottom + 0.5)
+    g.x, g.y = floor(left * s + 0.5), floor(bottom * s + 0.5)
     g.w, g.h = floor(win:GetWidth() + 0.5), floor(win:GetHeight() + 0.5)
     win:ClearAllPoints()
-    win:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", g.x, g.y)
+    win:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", g.x / s, g.y / s)
 end
 
 function UI.ResetGeometry()
@@ -728,6 +735,7 @@ ns.Listen("SETTING_CHANGED", function(key)
 end)
 
 ns.Listen("DB_READY", function() UI.ApplyGeometry() end)
+ns.Listen("SCALE_CHANGED", function() UI.ApplyGeometry() end)
 
 ns.On("PLAYER_LOGIN", function()
     UI.ApplyGeometry()

@@ -1,7 +1,7 @@
 -------------------------------------------------------------------------------
 --  Sotto: a small window to copy text from (links, a name, a transcript).
 --  The text is selected and focused; Ctrl+C copies, Esc closes. Typing does
---  not change it.
+--  not change it. It takes the Scale setting, as the window does.
 -------------------------------------------------------------------------------
 local _, ns = ...
 local Cb = {}
@@ -10,10 +10,17 @@ ns.CopyBox = Cb
 local W, L = ns.W, ns.L
 local frame, current
 
+-- 120 above the middle of the screen, in UIParent's units: the offset is in
+-- the box's own, which grow with its scale.
+local function place()
+    frame:ClearAllPoints()
+    frame:SetPoint("CENTER", UIParent, "CENTER", 0, 120 / W.Scale())
+end
+
 local function build()
-    frame = CreateFrame("Frame", "SottoCopyBox", UIParent)
+    frame = W.Scaled(CreateFrame("Frame", "SottoCopyBox", UIParent))
     frame:SetSize(400, 120)
-    frame:SetPoint("CENTER", 0, 120)
+    place()
     frame:SetFrameStrata("DIALOG")
     frame:SetToplevel(true)
     frame:EnableMouse(true)
@@ -84,3 +91,5 @@ function Cb.Show(title, text)
     frame.edit:SetFocus()
     frame.edit:HighlightText()
 end
+
+ns.Listen("SCALE_CHANGED", function() if frame then place() end end)

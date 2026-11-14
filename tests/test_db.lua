@@ -12,6 +12,7 @@ T.it("defaults fill a fresh SottoDB", function()
     T.eq(s.fadeIdle, true)
     T.eq(s.keepDays, 30)
     T.eq(s.minimap, true)
+    T.eq(s.scale, 1)
     T.eq(ns.Get("fontSize"), 13)
 end)
 

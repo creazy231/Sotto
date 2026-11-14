@@ -65,8 +65,8 @@ addon compartment open it too.
 
 Open the window when a whisper arrives (always, out of combat, never) · sound (soft chime,
 the game's whisper sound, none) · hide whispers from the chat window · use Sotto to
-whisper · accent (class colour or EllesmereUI) · text size · fade when idle · remember
-conversations · minimap button.
+whisper · accent (class colour or EllesmereUI) · scale (50 to 200 %) · text size · fade when
+idle · remember conversations · minimap button.
 
 ## Coming from WIM?
 

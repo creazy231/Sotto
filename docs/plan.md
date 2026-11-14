@@ -42,7 +42,7 @@ Execution: native (the user is away and asked for no interaction). Not a git rep
 - Produces: `ns.L`, `ns.IsSecret(...) -> bool`, `ns.InLockdown() -> bool`, `ns.Safe(fn, ...)`, `ns.On(event, fn)`, `ns.Off(event, fn)`, `ns.Listen(msg, fn)`, `ns.Fire(msg, ...)`, `ns.After(sec, fn)`, `ns.Print(text)`;
   `ns.Get(key) -> value`, `ns.Set(key, value)` (fires `"SETTING_CHANGED", key, value`), `ns.CharKey() -> "Name-Realm"`, `ns.DB` (= `SottoDB` after `ADDON_LOADED`);
   `ns.Color.Shift(c, dL, k) -> {r,g,b,a}`, `ns.Color.Contrast(c1, c2) -> number`, `ns.Color.Lift(ground, toward, c, ratio) -> r,g,b`.
-- Settings defaults: `openOn="nocombat"`, `sound="chime"`, `hideInChat=true`, `intercept=true`, `accent="class"`, `fontSize=13`, `fadeIdle=true`, `keepDays=30`, `minimap=true`.
+- Settings defaults: `openOn="nocombat"`, `sound="chime"`, `hideInChat=true`, `intercept=true`, `accent="class"`, `scale=1` (added 2026-11-14), `fontSize=13`, `fadeIdle=true`, `keepDays=30`, `minimap=true`.
 
 - [ ] Write `tests/harness.lua`: fresh fake environment per test (frames with scripts and points, textures, font strings with deterministic metrics: width = 0.5 × size × chars, height = ceil(width / box width) lines × (size + 2)), edit boxes, events (`T.fire(event, ...)`), timers (`T.flush()` runs `C_Timer.After` callbacks), `hooksecurefunc`, secret values (`T.secret(v)` + `issecretvalue`/`hasanysecretvalues`/`canaccessvalue`), `C_ChatInfo`, `C_BattleNet`, `C_FriendList`, `ChatFrameUtil`, `InCombatLockdown` toggle; `T.loadAddon()` reads `Sotto.toc` and runs each file with `(ADDON, ns)`.
 - [ ] `test_load.lua: every TOC file loads without error; only the allowed globals are created`.

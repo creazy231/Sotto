@@ -33,6 +33,10 @@ Cata, Wrath, Titan-Reforged) and Forever. Author for anything public: creazy231.
 - WoW Forever's gamepad interface (`ns.Gamepad()`, message `GAMEPAD_CHANGED`): Sotto steps aside there, as
   the controller cannot reach its window; whatever takes over Blizzard's chat (a filter, a key, a menu entry, an
   automatic open) must check it. See `docs/design.md`.
+- Scale (Settings, 50 to 200 %): every frame of Sotto's own on UIParent takes it. Create such a frame
+  with `W.Scaled(CreateFrame(...))` before painting it, divide its anchor offsets by `W.Scale()`, and
+  place it again on `SCALE_CHANGED` (a new scale is then repainted with `LOOKS_CHANGED`, so hairlines
+  stay one physical pixel). Positions are saved in UIParent's units.
 - `docs/` holds the user's screenshot and EllesmereUI's licensed font (mockup assets): never
   ship `docs/` or `tests/` in a public release.
 - Visual check without the game: `luajit tools/render_ui.lua <dir>/chat.html chat` draws what the

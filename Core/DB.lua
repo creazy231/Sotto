@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 --  Sotto: saved variables (SottoDB, account-wide) and settings.
---    settings   the nine options of the settings view
+--    settings   the ten options of the settings view
 --    window     position and size of the window
 --    chars      per character: { [charKey] = { convs = { [key] = conv } } }
 --    bn         Battle.net conversations, shared by all characters
@@ -14,6 +14,7 @@ ns.DEFAULTS = {
         hideInChat = true,
         intercept = true,
         accent = "class",      -- "class" | "eui"
+        scale = 1,             -- 0.5 to 2: the window, its menu, the notifications, the copy box
         fontSize = 13,
         fadeIdle = true,
         keepDays = 30,         -- 0 = until logout

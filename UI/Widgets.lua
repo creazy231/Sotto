@@ -2,7 +2,8 @@
 --  Sotto: drawing primitives and controls, all painted from the theme and
 --  repainted on LOOKS_CHANGED. Flat fills, 1 px hairlines (one physical
 --  pixel at any UI scale), white glyphs tinted in code, the house controls of
---  the settings view (switch, segmented choice, dropdown + menu, slider).
+--  the settings view (switch, segmented choice, dropdown + menu, slider), and
+--  the Scale setting on Sotto's own frames.
 -------------------------------------------------------------------------------
 local _, ns = ...
 local W = {}
@@ -42,6 +43,48 @@ function W.Pixel(frame)
     if not h or h <= 0 or scale <= 0 then return 1 end
     return 768 / h / scale
 end
+
+-------------------------------------------------------------------------------
+--  Scale: the Scale setting (50 to 200 %) on Sotto's own frames on UIParent,
+--  the window, its menu, the notifications and the copy box. A frame's
+--  anchor offsets are in its own units and grow with its scale, so their
+--  owners divide them by W.Scale() and place them again on SCALE_CHANGED.
+-------------------------------------------------------------------------------
+local SCALE_MIN, SCALE_MAX = 0.5, 2
+local scaled = setmetatable({}, { __mode = "k" })
+local given = 1 -- the scale they have (a new frame's is 1)
+
+-- The scale Sotto's frames have now.
+function W.Scale() return given end
+
+-- `frame` at the setting from now on. Called before it is painted, so its
+-- hairlines are one physical pixel at it.
+function W.Scaled(frame)
+    scaled[frame] = true
+    frame:SetScale(given)
+    return frame
+end
+
+-- The setting as a scale: anything else (a damaged setting) reads as 1.
+local function setting()
+    local s = ns.Get("scale")
+    if type(s) ~= "number" or s ~= s or s < SCALE_MIN or s > SCALE_MAX then return 1 end
+    return s
+end
+
+-- A new scale: every such frame takes it, their owners place them again,
+-- and everything is repainted at it. The saved one applies at login, when
+-- the theme paints too.
+local function rescale()
+    local s = setting()
+    if s == given then return end
+    given = s
+    for frame in pairs(scaled) do frame:SetScale(s) end
+    ns.Fire("SCALE_CHANGED", s)
+    ns.Fire("LOOKS_CHANGED")
+end
+ns.On("PLAYER_LOGIN", rescale)
+ns.Listen("SETTING_CHANGED", function(key) if key == "scale" then rescale() end end)
 
 -------------------------------------------------------------------------------
 --  Regions
@@ -377,7 +420,7 @@ local function menuRow(i)
 end
 
 local function buildMenu()
-    menu = CreateFrame("Frame", "SottoMenu", UIParent)
+    menu = W.Scaled(CreateFrame("Frame", "SottoMenu", UIParent)) -- it opens from the window, at its scale
     menu:SetFrameStrata("FULLSCREEN_DIALOG")
     menu:SetToplevel(true)
     menu:EnableMouse(true)
@@ -478,20 +521,32 @@ function W.Dropdown(parent, choices, get, set)
 end
 
 -------------------------------------------------------------------------------
---  Slider
+--  Slider: a 69 px track, its value on the right. `format` writes the value
+--  (tostring by default). The track ends where the widest value it shows
+--  starts, and at least `room` px (20 by default) from the right (slider.room;
+--  sliders given the same room line up). The value is as wide as its text, so
+--  a wider font later never cuts it off.
 -------------------------------------------------------------------------------
-function W.Slider(parent, lo, hi, step, get, set)
+local SL_PAD, SL_TRACK, SL_GAP, SL_ROOM = 5, 69, 10, 20
+
+function W.Slider(parent, lo, hi, step, get, set, format, room)
+    format = format or tostring
     local f = CreateFrame("Frame", nil, parent)
-    f:SetSize(104, 14)
     f:EnableMouse(true)
     f:EnableMouseWheel(true)
     f.value = W.Text(f, "small", "dim")
     f.value:SetPoint("RIGHT", 0, 0)
     f.value:SetJustifyH("RIGHT")
-    f.value:SetWidth(20)
+    room = max(room or SL_ROOM, SL_ROOM)
+    for _, v in ipairs({ lo, hi }) do
+        f.value:SetText(format(v))
+        room = max(room, ceil(f.value:GetStringWidth()))
+    end
+    f.room = room
+    f:SetSize(SL_PAD + SL_TRACK + SL_GAP + room, 14)
     f.track = W.Fill(f, "track", "ARTWORK")
-    f.track:SetPoint("LEFT", 5, 0)
-    f.track:SetPoint("RIGHT", -30, 0)
+    f.track:SetPoint("LEFT", SL_PAD, 0)
+    f.track:SetPoint("RIGHT", -(SL_GAP + room), 0)
     f.track:SetHeight(2)
     f.fill = W.Fill(f, "accent", "ARTWORK", 1)
     f.fill:SetPoint("LEFT", f.track, "LEFT")
@@ -513,7 +568,7 @@ function W.Slider(parent, lo, hi, step, get, set)
         self.fill:SetWidth(max(0.001, w * frac))
         self.knob:ClearAllPoints()
         self.knob:SetPoint("CENTER", self.track, "LEFT", w * frac, 0)
-        self.value:SetText(tostring(v))
+        self.value:SetText(format(v))
     end
 
     function f:SetTo(v)

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 (unreleased)
+
+- Scale in the settings (Look): 50 to 200 %, for the window, its menus, the notifications
+  and the copy box. The window keeps its bottom-left corner where it is, and the
+  notifications stay at that corner. Dragging the slider applies the new scale when you let
+  go of the mouse; the mouse wheel changes it in steps of 5 %.
+
 ## 1.1.0
 
 - WoW Forever's gamepad interface: Sotto now steps aside while it is on. Your whispers
