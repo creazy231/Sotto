@@ -299,17 +299,24 @@ end
 --  Events
 -------------------------------------------------------------------------------
 -- Roster events come in bursts and a rail can hold many conversations: one
--- deferred pass over what is on screen (the active conversation and the rail
--- badges), nothing while the window is hidden.
+-- deferred pass over what is on screen (the conversations shown, in the
+-- window or separate windows, and the rail badges), nothing while Sotto is
+-- hidden.
 local scheduled = false
 
 local function refreshVisible()
     scheduled = false
     if not (ns.UI and ns.UI.IsShown and ns.UI.IsShown()) then return end
     local seen, list = {}, {}
-    local active = ns.UI.Active and ns.UI.Active()
-    if active then seen[active] = true; list[1] = active end
-    for _, b in ipairs((ns.Rail and ns.Rail.badges) or {}) do
+    for _, conv in ipairs(ns.UI.OnScreen and ns.UI.OnScreen() or {}) do
+        if not seen[conv] then
+            seen[conv] = true
+            list[#list + 1] = conv
+        end
+    end
+    local rail = ns.Rail and ns.Rail.frame
+    local badges = (rail and rail:IsVisible() and ns.Rail.badges) or {}
+    for _, b in ipairs(badges) do
         if b.conv and not seen[b.conv] then
             seen[b.conv] = true
             list[#list + 1] = b.conv

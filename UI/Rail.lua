@@ -3,7 +3,9 @@
 --  first): a 28 px class icon, or Battle.net initials, with an unread pill;
 --  the active one carries the accent bar; offline contacts are greyed out.
 --  A click opens a badge's conversation, the right button its menu, and
---  shift-click or the middle button closes it.
+--  shift-click or the middle button closes it. With separate windows the
+--  rail is the dock: a badge opens its conversation's window, the open ones
+--  carry the accent bar, and closing deletes the history.
 --  "+" (new conversation) and the gear sit at the bottom.
 -------------------------------------------------------------------------------
 local _, ns = ...
@@ -48,12 +50,20 @@ local function showTip(b)
     GameTooltip:Show()
 end
 
+-- Closing from the rail: the conversation leaves it, its history stays. With
+-- separate windows closing deletes the history, as a window's shift-click does.
+local function close(conv)
+    if ns.UI.Separate() then ns.Windows.Close(conv) else ns.Store.Close(conv) end
+end
+
 local function convMenu(b)
     local conv = b.conv
+    local separate = ns.UI.Separate()
     W.Menu(b, {
         { text = L["Open"], func = function() ns.UI.Open(conv) end },
         { text = L["Clear history"], func = function() ns.Store.Clear(conv) end },
-        { text = L["Close conversation"], color = "danger", func = function() ns.Store.Close(conv) end },
+        { text = separate and L["Close and delete history"] or L["Close conversation"], color = "danger",
+            func = function() close(conv) end },
     }, 150)
 end
 
@@ -146,7 +156,7 @@ local function newBadge()
         if button == "RightButton" then
             convMenu(self)
         elseif button == "MiddleButton" or IsShiftKeyDown() then
-            ns.Store.Close(self.conv)
+            close(self.conv)
         else
             ns.UI.Open(self.conv)
         end
@@ -233,12 +243,15 @@ function R.Refresh()
     local convs = ns.Store.List()
     local fits = max(1, floor((list:GetHeight() + 2) / ROW))
     offset = max(0, min(offset, #convs - fits))
+    -- The accent bar: the conversation in the chat view, or with separate
+    -- windows every conversation whose window is open.
+    local separate = ns.UI.Separate and ns.UI.Separate()
     local active = ns.UI.Active and ns.UI.Active()
     for i = offset + 1, min(#convs, offset + fits) do
         local b = table.remove(pool) or newBadge()
         b:ClearAllPoints()
         b:SetPoint("TOP", list, "TOP", 0, -((i - offset - 1) * ROW))
-        paintBadge(b, convs[i], convs[i] == active)
+        paintBadge(b, convs[i], (separate and ns.Windows.IsOpen(convs[i])) or (not separate and convs[i] == active))
         b:Show()
         R.badges[#R.badges + 1] = b
     end

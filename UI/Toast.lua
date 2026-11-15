@@ -2,8 +2,11 @@
 --  Sotto: notification cards for whispers that do not open the window (in
 --  combat, or with "Open the window" set to Never). One card per
 --  conversation ("+N" counts the rest), at most three, stacked upward from
---  the window's bottom-left corner, at its scale (the Scale setting). They
---  last 8 s; hovering pauses them.
+--  the window's bottom-left corner, at its scale (the Scale setting). With
+--  separate windows, which open over that corner, they stack up from above
+--  the window's place instead (as many as fit under the top of the screen),
+--  or down from below it when there is no room above. They last 8 s;
+--  hovering pauses them.
 --  Left click opens the conversation ready to type, right click dismisses.
 -------------------------------------------------------------------------------
 local _, ns = ...
@@ -11,24 +14,37 @@ local Ts = {}
 ns.Toast = Ts
 
 local W, L = ns.W, ns.L
-local MAX, LIFE, GAP = 3, 8, 8
+local MAX, LIFE, GAP, CARD_H = 3, 8, 8, 58
 
 Ts.active = {}
 local pool = {}
 
-local function anchor()
+-- Where the stack starts (UIParent's units), which way it grows (1 up, -1
+-- down) and how many cards it holds.
+local function plan()
     local g = ns.DB and ns.DB.window
-    return (g and g.x) or 22, (g and g.y) or 328
+    local x, y, h = (g and g.x) or 22, (g and g.y) or 328, (g and g.h) or 306
+    if not (ns.UI and ns.UI.Separate and ns.UI.Separate()) then return x, y, 1, MAX end
+    local s = W.Scale()
+    local base = y + h * s + GAP * s
+    local fit = math.floor((UIParent:GetHeight() - base + GAP * s) / ((CARD_H + GAP) * s))
+    if fit >= 1 then return x, base, 1, math.min(MAX, fit) end
+    return x, y - GAP * s, -1, MAX
 end
 
 -- The corner is in UIParent's units, a card's offsets in its own (they grow
 -- with its scale): the corner is divided by the scale, the stacking is not.
 local function layout()
-    local x, y = anchor()
+    local x, y, dir = plan()
     local s = W.Scale()
     for i, t in ipairs(Ts.active) do
         t:ClearAllPoints()
-        t:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x / s, y / s + (i - 1) * (t:GetHeight() + GAP))
+        local off = (i - 1) * (t:GetHeight() + GAP)
+        if dir > 0 then
+            t:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x / s, y / s + off)
+        else
+            t:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / s, y / s - off)
+        end
     end
 end
 
@@ -137,7 +153,8 @@ function Ts.Show(conv, msg)
             return t
         end
     end
-    if #Ts.active >= MAX then Ts.Dismiss(Ts.active[1]) end
+    local _, _, _, room = plan()
+    while #Ts.active >= room do Ts.Dismiss(Ts.active[1]) end
     local t = table.remove(pool) or create()
     t.extra = 0
     t.count:Hide()

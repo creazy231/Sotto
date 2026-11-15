@@ -31,5 +31,6 @@ UI\Compose.lua
 UI\Pane.lua
 UI\Settings.lua
 UI\Toast.lua
+UI\Windows.lua
 UI\Window.lua
 UI\Launcher.lua

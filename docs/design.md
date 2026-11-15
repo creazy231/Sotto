@@ -110,9 +110,11 @@ reskinning WIM further (keeps WIM's options and complexity) or forking WIM (huge
   hover 7 %, selected 11 %. Contact and accent colours lifted to 4.5:1 on the panel.
 - **Fonts:** EllesmereUI's font, no outline, 1 px shadow; names in "Expressway Bold" when
   the EUI font is Expressway (falls back to the regular font). Without EUI: the game font.
-- **Settings (10):** Open the window (Always / Out of combat / Never), Sound (Soft chime /
-  Game whisper / None), Hide whispers from the chat window, Use Sotto to whisper, Accent (Class colour / EllesmereUI), Scale (50–200 %), Text size (11–16), Fade when idle,
-  Remember conversations (Until logout / 7 / 30 / 90 days), Minimap button.
+- **Settings (11):** Open the window (Always / Out of combat / Never), Sound (Soft chime /
+  Game whisper / None), Hide whispers from the chat window, Use Sotto to whisper, Separate
+  windows (2026-11-15), Accent (Class colour / EllesmereUI), Scale (50–200 %), Text size
+  (11–16), Fade when idle, Remember conversations (Until logout / 7 / 30 / 90 days),
+  Minimap button.
 - **Scale** (2026-11-14, the user's request): 50 to 200 % in steps of 5, default 100 %, for
   everything Sotto draws on UIParent: the window, its menu, the notifications and the copy
   box (not the minimap button, which follows the minimap). The window's bottom-left corner
@@ -278,6 +280,27 @@ icon lists the conversations.
   kept until "Remember conversations" drops it); only separate windows delete on close, as
   the user asked. A closed conversation stays known by name (empty), so the reply key opens
   that person again and not someone else.
+- **After the fresh-eyes review (same day):**
+  - *Seen* means on screen and not covered: a window counts as read while no window brought
+    up after it lies over a quarter of it or more. A whisper to a covered window brings it to
+    the front (read), unless the player is typing in another window or "Open the window" says
+    no (combat, Never): then it counts unread and a card shows. Clicking, dragging or typing
+    in a window brings it up and reads it; one that comes back into view is read.
+  - While the player types in one window, a whisper for another never opens a window over
+    the box: a card instead, as in combat.
+  - The cards stack up from above the window's place (the windows open over its corner),
+    as many as fit below the top of the screen, else down from below it.
+  - The server's copy of a line sent from a Sotto box (an echo) opens nothing; one that
+    arrives after its conversation was closed for good stays out of it (the chat window
+    keeps it). The rail window had the first half too: closing it right after sending no
+    longer brings it back.
+  - A minimised window gives its frame back to the pool (frames stay as many as windows on
+    screen at once); a moved one comes back at its saved place, else at the first free step.
+  - Turned on in the settings, the conversation shown before them gets its own window when
+    the settings close (not if the window was closed meanwhile).
+  - The "+" window moves by its name field, and its message box waits for the name.
+  - A conversation closed while the settings are open no longer throws them away on the
+    next whisper (the rail window did that too).
 
 ## Left to the builder
 

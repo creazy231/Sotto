@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
---  Sotto: the settings view (the gear in the rail). Ten settings in four
+--  Sotto: the settings view (the gear in the rail). Eleven settings in four
 --  sections, the rows of the approved mockup: label, a small description,
 --  the control on the right, a faint line between rows. In WoW Forever's
 --  gamepad interface a row above them says that the game's own chat is used.
@@ -224,6 +224,8 @@ function St.Build(v)
         C.intercept)
 
     section(L["Look"])
+    C.separate = W.Switch(content, getter("separate"), setter("separate"))
+    row(L["Separate windows"], L["Each conversation in its own window, as in WIM"], C.separate)
     C.accent = W.Segmented(content, {
         { value = "class", text = L["Class colour"] }, { value = "eui", text = L["EllesmereUI"] },
     }, getter("accent"), setter("accent"))

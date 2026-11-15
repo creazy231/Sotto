@@ -7,18 +7,28 @@
 --  corner stays put), and fades while idle. In WoW Forever's gamepad
 --  interface (ns.Gamepad) no whisper opens it or a notification, and the
 --  switch to that interface closes both; by hand it still opens.
+--  With "Separate windows" on, every conversation opens in its own window
+--  (UI/Windows.lua) and this window is the dock: the rail alone ("dock"
+--  view), as tall as its conversations, growing up from its saved corner;
+--  its gear still opens the settings at the full saved size.
 -------------------------------------------------------------------------------
 local _, ns = ...
 local UI = {}
 ns.UI = UI
 
 local W, L = ns.W, ns.L
-local floor, max = math.floor, math.max
+local floor, max, min = math.floor, math.max, math.min
 
 local RAIL_W = 46
+local DOCK_TOP, DOCK_BOTTOM, DOCK_ROW = 45, 62, 40 -- the rail's mark, its "+" and gear, a badge
 
 local active        -- the conversation in the chat view
 local view = "empty"
+local docked = false -- the window has the dock's size
+local carried       -- shown here when separate windows were turned on in the settings: opens on their close
+
+local function separate() return ns.Get("separate") == true end
+UI.Separate = separate
 
 -------------------------------------------------------------------------------
 --  Frame
@@ -151,11 +161,13 @@ grip:SetScript("OnMouseUp", function()
     win:StopMovingOrSizing()
     UI.SavePosition()
 end)
+UI.grip = grip
 
 -------------------------------------------------------------------------------
 --  New conversation: the name field over the header
 -------------------------------------------------------------------------------
 function UI.NewConversation()
+    if separate() then return ns.Windows.NewConversation() end
     if not win:IsShown() then UI.Show() end
     if view == "settings" then UI.Show() end
     pane:ShowPrompt()
@@ -163,6 +175,7 @@ end
 
 function UI.ClosePrompt()
     pane:ClosePrompt()
+    if separate() then ns.Windows.CancelPrompts() end
 end
 
 ns.Rail.Build(rail)
@@ -172,15 +185,46 @@ ns.Settings.Build(settings)
 --  Views
 -------------------------------------------------------------------------------
 function UI.View() return view end
-function UI.IsShown() return win:IsShown() end
-function UI.Active() return view == "chat" and active or nil end
-function UI.Typing(conv) return UI.compose:HasFocus() and UI.Active() == conv end
+
+-- Anything of Sotto's on screen: this window or a separate one.
+function UI.IsShown() return win:IsShown() or ns.Windows.AnyShown() end
+
+-- The conversation being looked at: the chat view's, or with separate windows
+-- the one brought up last.
+function UI.Active()
+    if separate() then return ns.Windows.Front() end
+    return view == "chat" and active or nil
+end
+
+-- This conversation is on screen (its whispers count as read).
+function UI.Sees(conv)
+    if not conv then return false end
+    if separate() then return ns.Windows.Sees(conv) end
+    return win:IsShown() and view == "chat" and active == conv
+end
+
+-- The conversations on screen.
+function UI.OnScreen()
+    if separate() then return ns.Windows.OnScreen() end
+    return (win:IsShown() and view == "chat" and active) and { active } or {}
+end
+
+function UI.Typing(conv)
+    if separate() then return ns.Windows.Typing(conv) end
+    return UI.compose:HasFocus() and UI.Active() == conv
+end
 
 function UI.ShowView(name)
     view = name
     chat:SetShown(name == "chat")
     settings:SetShown(name == "settings")
     empty:SetShown(name == "empty")
+    main:SetShown(name ~= "dock")
+    grip:SetShown(name ~= "dock")
+    if docked ~= (name == "dock") then
+        docked = name == "dock"
+        UI.ApplyGeometry()
+    end
     if name == "settings" then ns.Settings.Refresh() end
     ns.Rail.Refresh()
 end
@@ -203,8 +247,17 @@ function UI.Select(conv)
 end
 
 -- Show the window on the last conversation, the newest one, or the empty view.
+-- With separate windows: the dock.
 function UI.Show()
     if not win:IsShown() then win:Show() end
+    if separate() then
+        UI.ShowView("dock")
+        local conv = carried
+        carried = nil
+        if conv and conv.open then ns.Windows.Open(conv) end
+        UI.Wake()
+        return
+    end
     local list = ns.Store.List()
     local target = (active and active.open) and active or list[1]
     if target then
@@ -220,6 +273,10 @@ end
 function UI.Open(conv, opts)
     if type(opts) ~= "table" then opts = {} end
     if not conv then return UI.Show() end
+    if separate() then
+        ns.Windows.Open(conv, opts)
+        return
+    end
     if not win:IsShown() then win:Show() end
     UI.Select(conv)
     if opts.text then UI.compose:SetText(opts.text) end
@@ -254,7 +311,10 @@ local function step(dir)
     end
 end
 
-function UI.SelectNext()
+-- Tab in a compose box: the next conversation (with separate windows the
+-- next open window after `from`'s).
+function UI.SelectNext(from)
+    if separate() then return ns.Windows.FocusNext(from) end
     local c = step(1)
     if c then
         local focused = UI.compose:HasFocus()
@@ -283,11 +343,21 @@ function UI.MoreMenu(anchor) pane:MoreMenu(anchor) end
 -- window's own. The anchor's offsets are in the window's units, which grow
 -- with its scale, so they are divided by it: the corner stays where it was
 -- saved, whatever the scale.
+-- The dock: the rail's mark, a row per conversation, "+" and the gear; at
+-- most the window's height (the rail scrolls beyond).
+local function dockHeight(g)
+    return min(g.h or 306, DOCK_TOP + DOCK_BOTTOM + DOCK_ROW * #ns.Store.List())
+end
+
 function UI.ApplyGeometry()
     local g = ns.DB and ns.DB.window
     if not g then return end
     local s = W.Scale()
-    win:SetSize(g.w or 410, g.h or 306)
+    if docked then
+        win:SetSize(RAIL_W, dockHeight(g))
+    else
+        win:SetSize(g.w or 410, g.h or 306)
+    end
     win:ClearAllPoints()
     win:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", (g.x or 22) / s, (g.y or 328) / s)
 end
@@ -300,7 +370,9 @@ function UI.SavePosition()
     local s = W.Scale() -- GetLeft and GetBottom are in the window's units
     g.point = "BOTTOMLEFT"
     g.x, g.y = floor(left * s + 0.5), floor(bottom * s + 0.5)
-    g.w, g.h = floor(win:GetWidth() + 0.5), floor(win:GetHeight() + 0.5)
+    if not docked then -- the dock's size is not the window's
+        g.w, g.h = floor(win:GetWidth() + 0.5), floor(win:GetHeight() + 0.5)
+    end
     win:ClearAllPoints()
     win:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", g.x / s, g.y / s)
 end
@@ -336,6 +408,8 @@ win:SetScript("OnHide", function()
     fader:Stop()
     UI.compose:SaveDraft()
     if UI.compose:HasFocus() then UI.compose.box:ClearFocus() end
+    pane:ClosePrompt() -- a hidden name field must not keep the keyboard
+    carried = nil
     W.CloseMenu()
 end)
 
@@ -343,6 +417,20 @@ end)
 --  Events
 -------------------------------------------------------------------------------
 ns.Listen("INCOMING", function(conv, msg, wantOpen)
+    if separate() then
+        -- A window opening (or coming up) over the box the player types in
+        -- would hide what they type: a card instead, as in combat.
+        if ns.Windows.Sees(conv) then
+            ns.Windows.Wake(conv)
+        elseif ns.Gamepad() then
+            return
+        elseif wantOpen and not ns.Windows.TypingElsewhere(conv) then
+            ns.Windows.Open(conv)
+        else
+            ns.Toast.Show(conv, msg)
+        end
+        return
+    end
     if win:IsShown() then
         UI.Wake()
         if view == "empty" then UI.Select(conv) end
@@ -356,15 +444,33 @@ ns.Listen("INCOMING", function(conv, msg, wantOpen)
 end)
 
 ns.Listen("MESSAGE_ADDED", function(conv)
+    if separate() then return ns.Windows.OnMessage(conv) end
     if conv == active and view == "chat" then UI.log:OnMessage(conv) end
 end)
 
+-- The dock is as tall as its conversations.
+local function redock()
+    if docked then UI.ApplyGeometry() end
+end
+
+ns.Listen("CONV_ADDED", function()
+    redock()
+    ns.Rail.Refresh()
+end)
+
 ns.Listen("CONV_UPDATED", function(conv)
+    if separate() then
+        ns.Windows.OnUpdate(conv)
+        redock()
+        ns.Rail.Refresh()
+        return
+    end
     if active and not active.open then
-        -- The keyboard must not carry on into another conversation.
+        -- The keyboard must not carry on into another conversation; the
+        -- settings stay open (they show the next one when they close).
         if UI.compose:HasFocus() then UI.compose.box:ClearFocus() end
         local list = ns.Store.List()
-        if win:IsShown() and list[1] then
+        if win:IsShown() and view == "chat" and list[1] then
             UI.Select(list[1])
         else
             active = nil
@@ -379,6 +485,7 @@ end)
 
 ns.Listen("CONTACT_UPDATED", function(conv)
     if conv == active then UI.UpdateHeader() end
+    ns.Windows.OnContact(conv)
     ns.Rail.Refresh()
 end)
 
@@ -386,12 +493,17 @@ ns.Listen("UNREAD_CHANGED", function() ns.Rail.Refresh() end)
 
 ns.Listen("CONTACTS_REFRESHED", function()
     UI.UpdateHeader()
+    ns.Windows.OnContact(nil)
     ns.Rail.Refresh()
 end)
 
 -- A whisper sent from the chat box continues in Sotto.
 ns.Listen("OUTGOING", function(conv, opens)
     if not opens then return end
+    if separate() then
+        if not ns.Windows.Sees(conv) then ns.Windows.Open(conv) end
+        return
+    end
     if not win:IsShown() then
         UI.Open(conv)
     elseif view ~= "settings" and active ~= conv and not UI.compose:HasFocus() then
@@ -409,10 +521,43 @@ ns.Listen("GAMEPAD_CHANGED", function(on)
     if on ~= true then return end
     ns.Toast.HideAll()
     UI.Hide()
+    ns.Windows.HideAll()
 end)
 
-ns.Listen("SETTING_CHANGED", function(key)
+-- Separate windows on: the conversation shown here moves into its own window
+-- (at the same place, the chat column's) and the window docks. Off: the
+-- separate windows go and the window shows the one brought up last.
+local function switchMode(on)
+    if on then
+        local conv = (win:IsShown() and view == "chat") and active or nil
+        local typing = conv and UI.compose:HasFocus()
+        UI.compose:SaveDraft()
+        if typing then UI.compose.box:ClearFocus() end
+        UI.compose:SetConv(nil) -- its draft now belongs to the separate window
+        UI.log:Clear()
+        pane:ClosePrompt()
+        -- Turned on in the settings: the conversation shown before them gets
+        -- its own window when they close.
+        carried = (win:IsShown() and view == "settings" and active and active.open) and active or nil
+        if win:IsShown() and view ~= "settings" then UI.ShowView("dock") end
+        if conv then ns.Windows.Open(conv, { focus = typing }) end
+    else
+        carried = nil
+        local front = ns.Windows.Front()
+        local shown = ns.Windows.AnyShown()
+        ns.Windows.ReleaseAll()
+        if front then active = front end
+        if win:IsShown() and view ~= "settings" then
+            UI.Show()
+        elseif shown and not win:IsShown() then
+            UI.Show() -- what was on screen stays on screen, in the window
+        end
+    end
+end
+
+ns.Listen("SETTING_CHANGED", function(key, value)
     if key == "fadeIdle" then UI.Wake() end
+    if key == "separate" then switchMode(value == true) end
 end)
 
 ns.Listen("DB_READY", function() UI.ApplyGeometry() end)

@@ -54,6 +54,42 @@ local function seen(lineID)
 end
 
 -------------------------------------------------------------------------------
+--  Echoes: a line sent from Sotto's own box comes back as an inform. It opens
+--  nothing (the player typed it where the conversation is, maybe closing the
+--  window right after), and the echo of a line sent just before its
+--  conversation was closed for good stays out of it: the chat window keeps it.
+-------------------------------------------------------------------------------
+local echoes = {} -- conv.key -> { n = informs still to come, t = until when, drop = closed meanwhile }
+
+local function expectEchoes(conv, n)
+    local now = GetTime()
+    local e = echoes[conv.key]
+    if not e or e.t < now then
+        e = { n = 0 }
+        echoes[conv.key] = e
+    end
+    e.n = e.n + n
+    e.t = now + 5 + 0.25 * n
+    e.drop = nil
+end
+
+local function pendingEcho(key)
+    local e = key and echoes[key]
+    if not e then return nil end
+    if e.n <= 0 or e.t < GetTime() then
+        echoes[key] = nil
+        return nil
+    end
+    return e
+end
+
+-- The conversation was closed for good: its echoes still on the way stay out.
+function E.DropEchoes(conv)
+    local e = conv and pendingEcho(conv.key)
+    if e then e.drop = true end
+end
+
+-------------------------------------------------------------------------------
 --  Rules
 -------------------------------------------------------------------------------
 function E.ShouldOpen()
@@ -78,8 +114,9 @@ local function alert(conv)
     end
 end
 
+-- On screen right now (the chat view, or its separate window): read at once.
 local function isActive(conv)
-    return ns.UI and ns.UI.IsShown and ns.UI.IsShown() and ns.UI.Active and ns.UI.Active() == conv
+    return ns.UI ~= nil and ns.UI.Sees ~= nil and ns.UI.Sees(conv) == true
 end
 
 -------------------------------------------------------------------------------
@@ -174,6 +211,11 @@ function E.Filter(frame, event, ...)
     if type(text) ~= "string" then return false end
     local outgoing = event == "CHAT_MSG_WHISPER_INFORM" or event == "CHAT_MSG_BN_WHISPER_INFORM"
     if outgoing and not (uiShown() or E.OpensOnOutgoing()) then return false end
+    if outgoing then
+        local conv = event == "CHAT_MSG_BN_WHISPER_INFORM" and E.BNConvByID(bnID)
+        local e = pendingEcho(conv and conv.key or ns.Names.Key(who))
+        if e and e.drop then return false end -- Sotto leaves this echo to the chat window
+    end
     if event == "CHAT_MSG_BN_WHISPER" or event == "CHAT_MSG_BN_WHISPER_INFORM" then
         return type(bnID) == "number" and bnID > 0
     end
@@ -253,10 +295,13 @@ local function handle(event, t, recovered, ...)
     conv.online = true
 
     if out then
+        local echo = pendingEcho(conv.key)
+        if echo then echo.n = echo.n - 1 end
+        lastOutKey = conv.key
+        if echo and echo.drop then return end -- closed for good meanwhile: the chat window has it
         ns.Store.Add(conv, "o", text, t)
         ns.Store.MarkRead(conv)
-        lastOutKey = conv.key
-        ns.Fire("OUTGOING", conv, not recovered and E.OpensOnOutgoing())
+        ns.Fire("OUTGOING", conv, not recovered and not echo and E.OpensOnOutgoing())
     else
         local msg = ns.Store.Add(conv, "i", text, t)
         lastInKey = conv.key
@@ -397,6 +442,7 @@ function E.Send(conv, text)
         ns.Contacts.ResolveBN(conv)
         if not conv.bnID then return false end
     end
+    expectEchoes(conv, #chunks)
     -- Two right away, the rest paced so a long burst stays under the throttle.
     for i, chunk in ipairs(chunks) do
         if i <= 2 then

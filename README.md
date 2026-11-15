@@ -13,6 +13,10 @@ Pandaria, Cataclysm, Wrath, Titan-Reforged) and WoW Forever.
   and outgoing. A slim rail on the left holds one badge per conversation: class icon,
   unread count, offline contacts greyed out. Shift-click a badge to close its
   conversation.
+- **Or a window for each.** Prefer WIM's way? Turn on "Separate windows" and every
+  conversation gets its own window. "–" minimises one to the dock (the rail, on its
+  own); shift-click it to close the conversation and delete its history. A window you
+  move or resize keeps its place.
 - **Reads like a messenger.** Name and time once per run of messages, day separators, a
   "New" line above what you have not read yet, clickable items, quests and links
   (links open a copy box).
@@ -52,7 +56,7 @@ on mouse and keyboard. You can still open it by hand.
 
 | | |
 |---|---|
-| `/sotto` | open or close the window |
+| `/sotto` | open or close the window (with separate windows: the dock) |
 | `/sotto settings` | open the settings |
 | `/sotto reset` | put the window back where it started |
 
@@ -66,8 +70,8 @@ addon compartment open it too.
 
 Open the window when a whisper arrives (always, out of combat, never) · sound (soft chime,
 the game's whisper sound, none) · hide whispers from the chat window · use Sotto to
-whisper · accent (class colour or EllesmereUI) · scale (50 to 200 %) · text size · fade when
-idle · remember conversations · minimap button.
+whisper · separate windows · accent (class colour or EllesmereUI) · scale (50 to 200 %) · text
+size · fade when idle · remember conversations · minimap button.
 
 ## Coming from WIM?
 

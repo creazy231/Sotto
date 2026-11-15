@@ -174,3 +174,26 @@ T.it("a character conversation saved under a Battle.net account token is dropped
     T.eq(G.SottoDB.chars[CHAR].convs.aaa, good, "the others stay")
     for _, c in ipairs(S.List()) do T.ok(c ~= bad, "not in the rail") end
 end)
+
+-- Separate windows: shift-click on a window's "–" closes its conversation and deletes its history.
+T.it("Forget empties and closes a conversation and drops its saved place", function()
+    local G, W, ns, S = load()
+    local c = S.Ensure("w", "Tarin Ashgrove")
+    S.Add(c, "i", "hey")
+    S.Add(c, "o", "hi")
+    S.MarkUnread(c, 2)
+    c.win = { x = 300, y = 200, w = 364, h = 306 }
+    local updated, unread = 0, 0
+    ns.Listen("CONV_UPDATED", function(conv) if conv == c then updated = updated + 1 end end)
+    ns.Listen("UNREAD_CHANGED", function(conv) if conv == c then unread = unread + 1 end end)
+    S.Forget(c)
+    T.eq(#c.msgs, 0, "no history")
+    T.no(c.open, "closed")
+    T.eq(c.unread, 0)
+    T.eq(c.win, nil, "no saved place")
+    T.eq(#S.List(), 0, "gone from the list")
+    T.eq(S.Get("tarin ashgrove"), c, "still known by name, so a reply finds them again")
+    T.eq(updated, 1, "one update")
+    T.eq(unread, 1, "the unread count changed")
+    T.eq(G.SottoDB.chars[CHAR].convs["tarin ashgrove"].msgs[1], nil, "nothing saved")
+end)

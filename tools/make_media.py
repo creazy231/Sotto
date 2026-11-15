@@ -130,6 +130,13 @@ def g_close(size=32):
     return finish(m, size)
 
 
+def g_minimise(size=32):
+    m = canvas(size)
+    d = ImageDraw.Draw(m)
+    line(d, [(9.0, 16.0), (23.0, 16.0)], 2.6)
+    return finish(m, size)
+
+
 def g_back(size=32):
     m = canvas(size)
     d = ImageDraw.Draw(m)
@@ -272,7 +279,7 @@ def main():
     icons = os.path.join(media, "Icons")
     os.makedirs(icons, exist_ok=True)
     glyphs = {
-        "gear": g_gear, "plus": g_plus, "invite": g_invite, "more": g_more, "close": g_close,
+        "gear": g_gear, "plus": g_plus, "invite": g_invite, "more": g_more, "close": g_close, "minimise": g_minimise,
         "back": g_back, "chevron": g_chevron, "down": g_down, "warn": g_warn, "moon": g_moon,
         "check": g_check, "copy": g_copy, "offline": g_offline,
     }

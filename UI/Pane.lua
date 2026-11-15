@@ -246,6 +246,12 @@ local function buildPrompt(self, parent, opts)
     prompt:SetHeight(HEAD_H)
     prompt:SetFrameLevel(parent:GetFrameLevel() + 30)
     prompt:EnableMouse(true)
+    -- It covers the header, so it moves the window as the header does.
+    prompt:RegisterForDrag("LeftButton")
+    if opts.move then
+        prompt:SetScript("OnDragStart", opts.move.start)
+        prompt:SetScript("OnDragStop", opts.move.stop)
+    end
     prompt.bg = W.Fill(prompt, "panel")
     prompt.bg:SetAllPoints()
     W.Hair(prompt, "BOTTOM", "accentLine")

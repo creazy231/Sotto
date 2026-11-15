@@ -36,6 +36,11 @@ Cata, Wrath, Titan-Reforged) and Forever. Author for anything public: creazy231.
 - WoW Forever's gamepad interface (`ns.Gamepad()`, message `GAMEPAD_CHANGED`): Sotto steps aside there, as
   the controller cannot reach its window; whatever takes over Blizzard's chat (a filter, a key, a menu entry, an
   automatic open) must check it. See `docs/design.md`.
+- Separate windows (Settings → Look, setting `separate`, off by default; `UI/Windows.lua`): every
+  conversation in its own window, each a `UI/Pane.lua` (the chat column; the window has one too), and the
+  window becomes the dock (view "dock": the rail alone). Show or ask about a conversation only through
+  `ns.UI.Open`, `ns.UI.Sees`, `ns.UI.OnScreen`, `ns.UI.Typing` and `ns.UI.IsShown`: they answer for both
+  modes. In that mode closing a conversation deletes its history (`Store.Forget`); see `docs/design.md`.
 - Scale (Settings, 50 to 200 %): every frame of Sotto's own on UIParent takes it. Create such a frame
   with `W.Scaled(CreateFrame(...))` before painting it, divide its anchor offsets by `W.Scale()`, and
   place it again on `SCALE_CHANGED` (a new scale is then repainted with `LOOKS_CHANGED`, so hairlines
@@ -44,7 +49,7 @@ Cata, Wrath, Titan-Reforged) and Forever. Author for anything public: creazy231.
   ship `docs/` or `tests/` in a public release.
 - Visual check without the game: `luajit tools/render_ui.lua <dir>/chat.html chat` draws what the
   addon built in the fake client as HTML (scenarios: chat, new, lock, empty, settings, toast,
-  menu, bn, prompt). The page expects next to it: `media/` (`python3 -I tools/tga2png.py <dir>`),
+  menu, bn, prompt, windows, cross). The page expects next to it: `media/` (`python3 -I tools/tga2png.py <dir>`),
   `fonts/expressway.ttf`, `fonts/expressway-bold.ttf`, `class/class-<class>.png` and
   `backdrop.jpg` (from `docs/mockup/assets`). Serve the dir over http (fonts need it);
   `?shot=1&scale=2&bg=<image>` frames it for listing screenshots (`docs/listing/`).

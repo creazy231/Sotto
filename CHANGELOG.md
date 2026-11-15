@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.4.0 (unreleased)
+
+- Separate windows (Settings, Look; off unless you turn it on): every conversation in its
+  own window, as in WIM. Each window is the chat you know, with the contact's class icon
+  in its header. Its "–" minimises it; shift-click it, and it turns into a red cross,
+  to close the conversation and delete its history. Windows open where the chat used to
+  be and step down from there; one you move or resize keeps that place for its
+  conversation, also after a reload.
+- With separate windows on, the window itself becomes a slim dock: the rail with every
+  conversation (open windows carry the accent bar, minimised ones their unread count),
+  "+" to start one and the gear for the settings. The minimap button, `/sotto` and the
+  Toggle key show and hide it.
+- A whisper to a window hidden behind another brings it to the front. While you type in
+  one window, or in combat, a notification card shows instead, so nothing covers the box
+  you type in. The cards stay clear of the windows.
+- Closing the window right after sending no longer brings it back when the server echoes
+  your line, and the settings no longer jump back to the chat when a conversation is
+  closed while they are open.
+
 ## 1.3.0
 
 - The group finder's whisper entries now open Sotto right away, as "Whisper" in a player

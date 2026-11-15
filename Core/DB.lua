@@ -1,7 +1,8 @@
 -------------------------------------------------------------------------------
 --  Sotto: saved variables (SottoDB, account-wide) and settings.
---    settings   the ten options of the settings view
---    window     position and size of the window
+--    settings   the eleven options of the settings view
+--    window     position and size of the window (with separate windows: the dock's
+--               corner and the full size its settings open at)
 --    chars      per character: { [charKey] = { convs = { [key] = conv } } }
 --    bn         Battle.net conversations, shared by all characters
 -------------------------------------------------------------------------------
@@ -13,6 +14,7 @@ ns.DEFAULTS = {
         sound = "chime",       -- "chime" | "game" | "none"
         hideInChat = true,
         intercept = true,
+        separate = false,      -- a window per conversation (WIM's way) instead of the rail window
         accent = "class",      -- "class" | "eui"
         scale = 1,             -- 0.5 to 2: the window, its menu, the notifications, the copy box
         fontSize = 13,

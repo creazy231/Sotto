@@ -7,7 +7,8 @@
 --
 --  Usage (from the addon folder):
 --    luajit tools/render_ui.lua <out.html> <scenario>
---  scenarios: chat, new, lock, empty, settings, toast
+--  scenarios: chat, new, lock, empty, settings, toast, menu, bn, prompt,
+--             windows (separate windows and the dock), cross (shift over the dash)
 --  Media must be converted first: python3 -I tools/tga2png.py <render-dir>
 -------------------------------------------------------------------------------
 package.path = "./?.lua;" .. package.path
@@ -93,6 +94,21 @@ elseif scenario == "bn" then
     add(alex, "o", "sure, after this dungeon", 2 * 86400 - 60)
     add(alex, "i", "we need a druid for ZF, you in?", 90)
     ns.UI.Open(alex)
+elseif scenario == "windows" or scenario == "cross" then
+    -- Separate windows: the dock, Tarin's window where the chat column was, Kaja's
+    -- put to its right, Alex minimised with a whisper waiting.
+    ns.Set("separate", true)
+    kaja.win = { x = 22 + 46 + 364 + 26, y = 328, w = 364, h = 306 }
+    ns.UI.Open(kaja)
+    add(kaja, "i", "lf healer for Razorfen Kraul? we have tank + 2 dps", 30)
+    ns.UI.Open(tarin, { focus = true, text = "sure, 2 min, finishing this quest" })
+    S.MarkUnread(alex, 1)
+    ns.UI.Toggle()
+    if scenario == "cross" then
+        local b = ns.Windows.For(kaja).pane.head.close
+        W.shift = true
+        b:_fire("OnEnter")
+    end
 elseif scenario == "toast" then
     W.combat = true
     W.chat("CHAT_MSG_WHISPER", W.whisperArgs("lf healer for Razorfen Kraul? we have tank + 2 dps", "Kaja Stormhoof",
@@ -196,6 +212,7 @@ local function visit(f)
 end
 
 for _, root in ipairs({ G.SottoWindow, G.SottoMenu, G.SottoCopyBox }) do if root then visit(root) end end
+for _, w in ipairs(ns.Windows.all) do visit(w.frame) end
 for _, t in ipairs(ns.Toast.active) do visit(t) end
 table.sort(items, function(a, b)
     for k = 1, 5 do if a.z[k] ~= b.z[k] then return a.z[k] < b.z[k] end end
@@ -290,7 +307,22 @@ for z, it in ipairs(items) do
     end
 end
 
+-- The frame a listing shot centres: the window, or with separate windows
+-- everything of Sotto's on screen.
 local win = W.rect(G.SottoWindow)
+if ns.UI.Separate() then
+    local l, b, r, t = math.huge, math.huge, -math.huge, -math.huge
+    local roots = { G.SottoWindow }
+    for _, w in ipairs(ns.Windows.all) do roots[#roots + 1] = w.frame end
+    for _, f in ipairs(roots) do
+        if f:IsVisible() then
+            local rc = W.rect(f)
+            l, b = math.min(l, rc[1]), math.min(b, rc[2])
+            r, t = math.max(r, rc[1] + rc[3]), math.max(t, rc[2] + rc[4])
+        end
+    end
+    win = { l, b, r - l, t - b }
+end
 local toast = ns.Toast.active[1] and W.rect(ns.Toast.active[1])
 local toastJS = toast and string.format("{x:%f,y:%f,w:%f,h:%f}", toast[1], SH - toast[2] - toast[4], toast[3], toast[4]) or "null"
 local doc = [[<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sotto render</title><style>

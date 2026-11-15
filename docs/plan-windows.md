@@ -43,56 +43,59 @@ minimised conversations; its gear still opens the settings at full size.
 ---
 
 ### Task 1: Log instances (refactor)
-- [ ] `ns.Log.New(frame) -> log` (`frame, content, items, rows, conv`; `:SetConv(conv, firstUnread)`,
+- [x] `ns.Log.New(frame) -> log` (`frame, content, items, rows, conv`; `:SetConv(conv, firstUnread)`,
   `:Refresh(remeasure)`, `:Render()`, `:OnMessage(conv)`, `:Scroll(d)`, `:ScrollToBottom()`, `:Clear()`).
   Heights cache shared; LOOKS_CHANGED refreshes every log.
-- [ ] Window uses `UI.log`; tests read `ns.UI.log`. Suite green, renders identical.
+- [x] Window uses `UI.log`; tests read `ns.UI.log`. Suite green, renders identical.
 
 ### Task 2: Compose instances (refactor)
-- [ ] `ns.Compose.New(frame) -> compose` (`box, placeholder, conv`; `:SetConv, :SaveDraft, :SetText, :Focus,
+- [x] `ns.Compose.New(frame) -> compose` (`box, placeholder, conv`; `:SetConv, :SaveDraft, :SetText, :Focus,
   :HasFocus, :UpdatePlaceholder`); drafts and sent history shared; `ns.Compose.Focused()`,
   `ns.Compose.DropDraft(key)`; one InsertLink hook for the focused box; Tab → `ns.UI.SelectNext(conv)`;
   `COMPOSE_FOCUS(focused, compose)`.
-- [ ] Window uses `UI.compose`; tests read `ns.UI.compose`. Suite green, renders identical.
+- [x] Window uses `UI.compose`; tests read `ns.UI.compose`. Suite green, renders identical.
 
 ### Task 3: Pane and Fader (refactor)
-- [ ] `ns.Pane.New(frame, opts)` (opts: `tile`, `button` "close"|"minimise", `onButton(pane, mouse)`,
+- [x] `ns.Pane.New(frame, opts)` (opts: `tile`, `button` "close"|"minimise", `onButton(pane, mouse)`,
   `promptParent`, `onPick(pane, name)`, `move` {start, stop}); `:SetConv(conv)` (New line at the first unread,
   marks read, refreshes the contact), `:UpdateHeader()`, `:Layout()`, `:ShowPrompt()`, `:ClosePrompt()`,
   `:MoreMenu(anchor)`, `:Invite()`; WIM notice and lockdown banner for every pane; `ns.Pane.ProperName`.
-- [ ] `W.Fader(frame, awake) -> fader` (`:Wake()`), the window's idle fade moved onto it.
-- [ ] `UI.header/notice/banner/prompt/log/compose` stay. Suite green, renders identical.
+- [x] `W.Fader(frame, awake) -> fader` (`:Wake()`), the window's idle fade moved onto it.
+- [x] `UI.header/notice/banner/prompt/log/compose` stay. Suite green, renders identical.
 
 ### Task 4: Setting, Forget, glyph
-- [ ] Tests: "Separate windows is off by default and is the first row under Look";
+- [x] Tests: "Separate windows is off by default and is the first row under Look";
   "Forget empties and closes a conversation and its saved place". `settings.separate`; Settings row
   (switch, "Each conversation in its own window, as in WIM"); `Store.Forget(conv)`; `Media/Icons/minimise`.
 
 ### Task 5: The separate windows
-- [ ] Tests (test_windows.lua): a whisper opens its own window, not the rail window, no focus; two
+- [x] Tests (test_windows.lua): a whisper opens its own window, not the rail window, no focus; two
   conversations two windows; a minimised conversation counts unread and opens again with the next whisper; the
   dash minimises and keeps history; shift-click closes and deletes history and draft; the button turns into a
   red cross while shift is held; the "…" menu closes and deletes; a toast opens the window focused; the reply
   key, a player menu's Whisper and a whisper sent from chat open the window; the reply key after closing opens
   that person again; typing mutes the chime; Tab moves to the next window; Esc minimises every window.
-- [ ] `UI/Windows.lua`; `UI.Open/Sees/IsShown/OnScreen/Typing` dispatch; Engine and Contacts through them.
+- [x] `UI/Windows.lua`; `UI.Open/Sees/IsShown/OnScreen/Typing` dispatch; Engine and Contacts through them.
 
 ### Task 6: Places
-- [ ] Tests: the first window opens where the chat column would be, at its size; the next ones cascade; a
+- [x] Tests: the first window opens where the chat column would be, at its size; the next ones cascade; a
   moved or resized window keeps its place for its conversation (saved); a closed one forgets it; Scale keeps
   each window's corner.
 
 ### Task 7: The dock
-- [ ] Tests: with the option on the window is the rail alone, as tall as its conversations; a badge opens its
+- [x] Tests: with the option on the window is the rail alone, as tall as its conversations; a badge opens its
   conversation's window and shows which are open; shift-click on a badge closes and deletes; the gear opens the
   settings at full size, closing them docks again; "+" opens a window asking for a name (Enter binds it, a known
   name brings its window, Esc lets it go); toggling and the minimap button show and hide the dock.
 
 ### Task 8: Switching and the rest
-- [ ] Tests: on with a conversation shown moves it into its own window; off closes the windows and the window
+- [x] Tests: on with a conversation shown moves it into its own window; off closes the windows and the window
   shows the last one used; drafts survive both; the gamepad interface hides the windows; the lockdown banner and
   the WIM notice show in each window; a window on screen lets the filter hide "not found" lines.
 
 ### Task 9: Docs, preview, review
-- [ ] design.md, CHANGELOG (1.4.0, unreleased), README, listing copy, CLAUDE.md, ledger; render scenes
+- [x] design.md, CHANGELOG (1.4.0, unreleased), README, listing copy, CLAUDE.md, ledger; render scenes
   `windows` and `dock`; a fresh-eyes review; fixes; commit (no push, no tag).
+
+Done 2026-11-15 (see docs/ledger.md, "Separate windows"): tasks 1–9, then a review round
+(2 Important, 6 Minor findings, all fixed with tests). 307 tests.

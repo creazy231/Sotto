@@ -6,7 +6,8 @@
 --  session's account id.
 --
 --  conv = { key, kind = "w"|"bn", name, tag, bnID, class, race, level, zone,
---           guid, online, char, last, unread, open, msgs = { msg... } }
+--           guid, online, char, last, unread, open, msgs = { msg... },
+--           win = { x, y, w, h } (where the player put its separate window) }
 --  msg  = { t = time, d = "i"|"o"|"s" (in, out, system), m = text, s = kind }
 -------------------------------------------------------------------------------
 local _, ns = ...
@@ -144,6 +145,19 @@ end
 function S.Clear(conv)
     conv.msgs = {}
     ns.Fire("CONV_UPDATED", conv)
+end
+
+-- Closed for good (a separate window shift-clicked shut): no history, no
+-- saved place. The empty record stays until the next login prunes it, so
+-- the reply key still finds that person and not someone else.
+function S.Forget(conv)
+    conv.msgs = {}
+    conv.win = nil
+    conv.open = false
+    local had = (conv.unread or 0) > 0
+    conv.unread = 0
+    ns.Fire("CONV_UPDATED", conv)
+    if had then ns.Fire("UNREAD_CHANGED", conv) end
 end
 
 -- A reported player: Blizzard's chat removes their lines, Sotto their

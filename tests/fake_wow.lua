@@ -383,7 +383,8 @@ function F.new(opts)
     function Object:StopMovingOrSizing() self._moving, self._sizing = nil, nil end
     function Object:SetClipsChildren(v) self._clips = v end
     function Object:SetHyperlinksEnabled(v) self._links = v end
-    function Object:Raise() end
+    -- Raise order, as the client stacks frames of one strata (the last raised on top).
+    function Object:Raise() W.raises = (W.raises or 0) + 1; self._raisedAt = W.raises end
     function Object:Lower() end
     function Object:SetID(i) self._id = i end
     function Object:GetID() return self._id or 0 end
