@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.0 (unreleased)
+## 1.4.0
 
 - Separate windows (Settings, Look; off unless you turn it on): every conversation in its
   own window, as in WIM. Each window is the chat you know, with the contact's class icon
