@@ -130,13 +130,24 @@ end
 -- WoW Forever whispers some Battle.net friends by character (title friends):
 -- Blizzard's ChatFrameUtil.SendBNetTell sends those to this target instead.
 -- A target that is the account token (|K...|k) is still a Battle.net whisper.
+local titles = {} -- bnID -> the character Forever named for them last this session
+
 function C.TitleTarget(bnID)
     local get = C_BattleNet and C_BattleNet.GetDefaultTitleWhisperTarget
     if not get or not readable(bnID, "number") then return nil end
     local ok, target = pcall(get, bnID)
     target = ok and readable(target, "string") or nil
     if not target or target:find("|K", 1, true) then return nil end
+    titles[bnID] = target
     return target
+end
+
+-- The character conversation of a friend WoW Forever whispers by character:
+-- the character it names now or, once they went offline, the one it named
+-- last this session. nil for everyone else.
+function C.TitleConv(bnID)
+    local char = C.TitleTarget(bnID) or (readable(bnID, "number") and titles[bnID]) or nil
+    return char and ns.Store.Get(ns.Names.Key(char)) or nil
 end
 
 -- The account id for an account name (the |K token a chat line carries).
@@ -179,6 +190,21 @@ function C.ResolveBN(conv)
     return info
 end
 
+-- The name to invite a friend's character by (group, guild), or nil when this game
+-- cannot reach it. As Blizzard's friends list: the same version of the game, realm
+-- info, on Classic the same realm. Another realm on Retail: "Name-Realm"; WoW
+-- Forever's names are unique without one.
+local function inviteName(game, char)
+    if not char then return nil end
+    if readable(game.wowProjectID, "number") ~= WOW_PROJECT_ID then return nil end
+    local realmID = readable(game.realmID, "number")
+    if not realmID then return nil end
+    if ns.Names.Unique() or realmID == (GetRealmID and GetRealmID()) then return char end
+    if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then return nil end
+    local realm = readable(game.realmName, "string")
+    return realm and (char .. "-" .. (realm:gsub("[%s%-]", ""))) or nil
+end
+
 local function refreshBN(conv)
     local info = C.ResolveBN(conv)
     if not info then return end
@@ -190,12 +216,13 @@ local function refreshBN(conv)
     conv.client = client
     if online and client == "WoW" then
         conv.char = readable(game.characterName, "string")
+        conv.invite = inviteName(game, conv.char)
         conv.level = readable(game.characterLevel, "number")
         conv.zone = readable(game.areaName, "string")
         conv.class = classFile(readable(game.className, "string")) or conv.class
         conv.race = readable(game.raceName, "string") or conv.race
     else
-        conv.char, conv.zone = nil, nil
+        conv.char, conv.zone, conv.invite = nil, nil, nil
     end
 end
 

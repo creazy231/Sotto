@@ -41,6 +41,18 @@ Cata, Wrath, Titan-Reforged) and Forever. Author for anything public: creazy231.
   window becomes the dock (view "dock": the rail alone). Show or ask about a conversation only through
   `ns.UI.Open`, `ns.UI.Sees`, `ns.UI.OnScreen`, `ns.UI.Typing` and `ns.UI.IsShown`: they answer for both
   modes. In that mode closing a conversation deletes its history (`Store.Forget`); see `docs/design.md`.
+- Keep windows open (Settings → Look, setting `keepOpen`, on by default): Sotto's windows are the game's
+  special frames (UISpecialFrames, which Blizzard's CloseAllWindows hides on Esc, loading screens, death,
+  loss of control and Alt+Z) only while it is off. Register a new window's frame with `W.Escapable(name)`,
+  never `tinsert(UISpecialFrames, ...)` (menus and the copy box stay special frames). What is on screen at
+  `PLAYER_LOGOUT` comes back at the session's first `PLAYER_ENTERING_WORLD` (`SottoDB.window.shown/conv`,
+  `conv.up`; `UI/Window.lua`); the gamepad interface stashes it. A new edit box of Sotto's that a click
+  into the game world should release: `W.ReleasedByWorld(box)`.
+- Unread while faded: a whisper counts read only through `ns.UI.Reads` (on screen and its window not idle:
+  someone was at it within 4 s). A window lit up for a whisper uses `fader:Flash()`, one the player brings
+  up `fader:Wake()`; only the player at a window (`W.Fader`'s `look`: `W.MouseIn`, its own menu, its
+  keyboard) reads what came in while it was idle. Invite a Battle.net friend only by `conv.invite` (set by
+  `Contacts` when this game can reach their character), never by `conv.char`.
 - Scale (Settings, 50 to 200 %): every frame of Sotto's own on UIParent takes it. Create such a frame
   with `W.Scaled(CreateFrame(...))` before painting it, divide its anchor offsets by `W.Scale()`, and
   place it again on `SCALE_CHANGED` (a new scale is then repainted with `LOOKS_CHANGED`, so hairlines

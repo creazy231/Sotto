@@ -7,7 +7,9 @@
 --
 --  conv = { key, kind = "w"|"bn", name, tag, bnID, class, race, level, zone,
 --           guid, online, char, last, unread, open, msgs = { msg... },
---           win = { x, y, w, h } (where the player put its separate window) }
+--           win = { x, y, w, h } (where the player put its separate window),
+--           up = { n, x, y } (its separate window was on screen at logout: its
+--           place in the stack and its corner; UI/Window.lua brings it back) }
 --  msg  = { t = time, d = "i"|"o"|"s" (in, out, system), m = text, s = kind }
 -------------------------------------------------------------------------------
 local _, ns = ...
@@ -85,7 +87,9 @@ end
 
 -- Messages stay in time order (a message recovered after a lockdown can be
 -- older than the newest one).
-function S.Add(conv, d, text, t, sys)
+-- keepOrder: a note (a friend came online) that is no reason to move the
+-- conversation up the rail.
+function S.Add(conv, d, text, t, sys, keepOrder)
     local msg = { t = t or time(), d = d, m = text, s = sys }
     local msgs = conv.msgs
     local i = #msgs
@@ -94,7 +98,7 @@ function S.Add(conv, d, text, t, sys)
     while #msgs > MAX_MESSAGES do table.remove(msgs, 1) end
     -- The first message decides the recency of a new conversation (its
     -- creation time may be later, e.g. a whisper recovered after a lockdown).
-    if #msgs == 1 or msg.t >= (conv.last or 0) then
+    if not keepOrder and (#msgs == 1 or msg.t >= (conv.last or 0)) then
         conv.last = msg.t
         touch(conv)
     end

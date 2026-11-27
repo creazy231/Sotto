@@ -12,7 +12,7 @@ Pandaria, Cataclysm, Wrath, Titan-Reforged) and WoW Forever.
 - **One window for every whisper.** Character whispers and Battle.net whispers, incoming
   and outgoing. A slim rail on the left holds one badge per conversation: class icon,
   unread count, offline contacts greyed out. Shift-click a badge to close its
-  conversation.
+  conversation. The "…" menu adds a friend, invites to your guild, ignores or copies.
 - **Or a window for each.** Prefer WIM's way? Turn on "Separate windows" and every
   conversation gets its own window. "–" minimises one to the dock (the rail, on its
   own); shift-click it to close the conversation and delete its history. A window you
@@ -25,7 +25,12 @@ Pandaria, Cataclysm, Wrath, Titan-Reforged) and WoW Forever.
   land in the box.
 - **Stays out of your way.** Out of combat the window opens on a new whisper; in combat a
   small card slides in instead (or always, if you prefer). No keyboard focus is taken
-  unless you ask for it. The window fades while you are not using it.
+  unless you ask for it, and a click into the game world gives it back. The window fades
+  while you are not using it.
+- **Stays open.** Esc, loading screens and hiding the interface leave Sotto's windows on
+  screen, and after a reload what was open comes back: the window, or the dock and every
+  separate window in its place. Only you close them ("Keep windows open", on by default).
+  A whisper that comes in while a window is faded stays unread until you look.
 - **Your whispers, your window.** Your reply key, "Whisper" in a player menu (a name in
   chat, a unit frame, friends, guild) and the group finder's "Send Message" or "Whisper
   Leader" open Sotto right away, and a whisper you start from the chat box continues there. Whispers are hidden from the normal chat window. (Inside
@@ -70,7 +75,7 @@ addon compartment open it too.
 
 Open the window when a whisper arrives (always, out of combat, never) · sound (soft chime,
 the game's whisper sound, none) · hide whispers from the chat window · use Sotto to
-whisper · separate windows · accent (class colour or EllesmereUI) · scale (50 to 200 %) · text
+whisper · separate windows · keep windows open · accent (class colour or EllesmereUI) · scale (50 to 200 %) · text
 size · fade when idle · remember conversations · minimap button.
 
 ## Coming from WIM?

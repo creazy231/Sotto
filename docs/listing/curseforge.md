@@ -22,7 +22,8 @@ Everything to paste into the CurseForge project form (authors.curseforge.com).
 2. `screenshots/02-new-whisper.png` — See what's new at a glance: unread counts on every badge, a "New" line in the chat.
 3. `screenshots/03-notification.png` — Stays out of your fight: in combat a small card slides in instead of the window.
 4. `screenshots/04-boss-fight.png` — Boss fight? Nothing gets lost: whispers wait in your chat and land in Sotto when the fight ends.
-5. `screenshots/05-settings.png` — Eleven settings. That's all.
+5. `screenshots/05-settings.png` — Twelve settings. That's all. (The image still says "Eleven":
+   re-render it with `tools/make_listing.py` once the render dir has its backdrops again.)
 6. `screenshots/06-empty.png` — Fits right into your UI: EllesmereUI's colours and font, or your class colour.
 7. `screenshots/07-windows.png` — Or a window for each: as in WIM, one setting gives every conversation its own window.
 
@@ -39,11 +40,12 @@ A whisper messenger for World of Warcraft, in the spirit of WIM, with only the o
 
 ## Features
 
-- **One window for every whisper.** Character and Battle.net whispers, incoming and outgoing. A slim rail holds one badge per conversation: class icon, unread count, offline contacts greyed out. Shift-click a badge to close it.
+- **One window for every whisper.** Character and Battle.net whispers, incoming and outgoing. A slim rail holds one badge per conversation: class icon, unread count, offline contacts greyed out. Shift-click a badge to close it. The "…" menu adds a friend, invites to your guild, ignores or copies.
 - **Or a window for each.** Prefer WIM's way? Turn on "Separate windows": every conversation gets its own window, "–" minimises it to the dock, shift-click closes it and deletes its history.
 - **Reads like a messenger.** Name and time once per run of messages, day separators, a "New" line above what you have not read yet, clickable items, quests and links.
 - **Answer where you read.** Enter sends, long messages are split for you, Up and Down bring back what you sent, every conversation keeps its own draft, shift-clicked items land in the box.
-- **Stays out of your way.** Out of combat the window opens on a new whisper; in combat a small card slides in instead. No keyboard focus is taken unless you ask for it. The window fades while you are not using it.
+- **Stays out of your way.** Out of combat the window opens on a new whisper; in combat a small card slides in instead. No keyboard focus is taken unless you ask for it, and a click into the game world gives it back. The window fades while you are not using it.
+- **Stays open.** Esc and loading screens leave Sotto's windows on screen, and after a reload what was open comes back. Only you close them. A whisper that comes in while a window is faded stays unread until you look.
 - **Your whispers, your window.** Your reply key, "Whisper" in a player menu and the group finder's whisper open Sotto right away, and a whisper you start from the chat box continues there. Whispers are hidden from the normal chat window.
 - **Remembers.** Conversations survive reloads and logouts (7, 30 or 90 days, or until logout).
 - **Matches your UI.** With EllesmereUI it follows your panel colour, font and accent live; the accent can also be your class colour. Works without EllesmereUI too. Scale it from 50 to 200 % in its settings.

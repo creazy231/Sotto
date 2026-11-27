@@ -6,23 +6,31 @@
 --  its frame back in the pool; the conversation stays, its badge in the
 --  dock), shift-click closes the conversation and deletes its history, draft
 --  and saved place (WIM's shift-click); while shift is held over it the dash
---  turns into a red cross. Esc minimises every window.
---  A window counts as seen (its whispers read) while no window brought up
---  after it lies over a quarter of it or more.
+--  turns into a red cross. With Keep windows open off, Esc minimises every
+--  window.
+--  A window counts as seen while no window brought up after it lies over a
+--  quarter of it or more; its whispers count read while someone has been at it
+--  in the last 4 s (Fade when idle): one into a faded window waits for the mouse
+--  over it or its keyboard, even when it brings the window to the front.
 --  The first window opens where the window's chat column would be, at its
 --  size; the next ones step down and right. A window the player moves or
 --  resizes keeps that place for its conversation (conv.win: the corner in
 --  UIParent's units, the size in its own), so it comes back there.
 --    ns.Windows.Open(conv, opts)   shows its window (makes one), raises it;
---                                  opts.focus, opts.text as for the window
+--                                  opts.focus, opts.text as for the window;
+--                                  opts.at = { x, y }: where a new one goes
+--                                  without a saved place (a login brings it back)
 --    ns.Windows.Minimise(conv), ns.Windows.Close(conv)
 --    ns.Windows.For(conv) -> win   its window while shown (win.frame, win.pane); nil once
 --                                  minimised (the frame went back to the pool)
 --    ns.Windows.IsOpen(conv)       its window is shown
 --    ns.Windows.Sees(conv)         ... and not covered by one brought up later
+--    ns.Windows.Reads(conv)        ... and someone has been at it lately (a whisper is read)
+--    ns.Windows.Flash(conv)        a whisper for it: it lights up
 --    ns.Windows.TypingElsewhere(conv)  a box of another window has the keyboard
 --    ns.Windows.AnyShown(), ns.Windows.OnScreen() -> { conv }
 --    ns.Windows.Front() -> conv    the shown one brought up last
+--    ns.Windows.Shown()            { { conv, x, y } } of the shown ones, the front one last
 --    ns.Windows.NewConversation()  a window asking for a name ("+")
 --    ns.Windows.CancelPrompts(), ns.Windows.HideAll(), ns.Windows.ReleaseAll()
 --    ns.Windows.FocusNext(conv)    Tab: the next open window's box
@@ -71,12 +79,15 @@ local function anchor(w)
     w.frame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", w.at[1] / s, w.at[2] / s)
 end
 
--- Its saved place, else the first free step from the chat column's corner.
-local function place(w)
+-- Its saved place, else `at` (where it was before a reload), else the first
+-- free step from the chat column's corner.
+local function place(w, at)
     local saved = w.conv and w.conv.win
     local x, y, width, height
     if type(saved) == "table" and saved.x and saved.y then
         x, y, width, height = saved.x, saved.y, saved.w, saved.h
+    elseif type(at) == "table" and at[1] and at[2] and not taken(at[1], at[2], w) then
+        x, y = at[1], at[2]
     else
         local s = W.Scale()
         local ox, oy, ow, oh = origin()
@@ -180,10 +191,12 @@ local function covered(w)
     return false
 end
 
--- A window went away or moved: what is in view now is read.
+-- A window went away or moved: what is in view now is read, unless it is faded
+-- (then it waits for a look).
 local function readUncovered()
     for _, o in ipairs(all) do
-        if o.conv and o.frame:IsShown() and (o.conv.unread or 0) > 0 and not covered(o) then
+        if o.conv and o.frame:IsShown() and (o.conv.unread or 0) > 0 and not covered(o)
+            and not o.fader:Idle() then
             ns.Store.MarkRead(o.conv)
         end
     end
@@ -212,7 +225,7 @@ local function newWindow()
     if f.SetDontSavePosition then f:SetDontSavePosition(true) end
     f:EnableMouse(true)
     f:Hide()
-    tinsert(UISpecialFrames, name)
+    W.Escapable(name) -- Esc minimises it only with Keep windows open off
     f.bg = W.Fill(f, "bg", "BACKGROUND", -7)
     f.bg:SetAllPoints()
     W.Shadow(f, 16, 0.55)
@@ -265,7 +278,11 @@ local function newWindow()
     end)
     w.grip = grip
 
-    w.fader = W.Fader(f, function() return w.pane.compose:HasFocus() end)
+    -- The player at the window reads it, unless another lies over it.
+    w.fader = W.Fader(f, function() return w.pane.compose:HasFocus() or w.pane.prompt.edit:HasFocus() end, function()
+        local c = w.conv
+        if c and (c.unread or 0) > 0 and not covered(w) then ns.Store.MarkRead(c) end
+    end)
     f:SetScript("OnShow", function()
         w.fader:Start()
         ns.Contacts.ScheduleRefresh()
@@ -284,6 +301,8 @@ local function newWindow()
         W.HideTip(dash)
         local menu = W.CurrentMenu()
         if menu and menu:IsShown() and menu.anchor == w.pane.head.more then W.CloseMenu() end
+        -- Hidden with the interface (Alt+Z, a cinematic): it comes back with it.
+        if f:IsShown() then return end
         if w.used then release(w) end
         readUncovered()
         ns.Rail.Refresh()
@@ -324,6 +343,13 @@ function Wn.Sees(conv)
     return w ~= nil and w.frame:IsShown() and not covered(w)
 end
 
+-- ... and someone has been at it lately: a whisper into a faded window counts
+-- unread until the player looks.
+function Wn.Reads(conv)
+    local w = Wn.For(conv)
+    return w ~= nil and w.frame:IsShown() and not covered(w) and not w.fader:Idle()
+end
+
 -- The player is typing in another window (its box or its name field).
 function Wn.TypingElsewhere(conv)
     for _, w in ipairs(all) do
@@ -346,6 +372,19 @@ function Wn.OnScreen()
     for _, w in ipairs(all) do
         if w.conv and w.frame:IsShown() then out[#out + 1] = w.conv end
     end
+    return out
+end
+
+-- The shown windows, the one brought up last at the end: { { conv, x, y } }
+-- (x, y: the corner in UIParent's units).
+function Wn.Shown()
+    local up = {}
+    for _, w in ipairs(all) do
+        if w.conv and w.frame:IsShown() then up[#up + 1] = w end
+    end
+    table.sort(up, function(a, b) return (a.raised or 0) < (b.raised or 0) end)
+    local out = {}
+    for i, w in ipairs(up) do out[i] = { conv = w.conv, x = w.at and w.at[1], y = w.at and w.at[2] } end
     return out
 end
 
@@ -374,20 +413,20 @@ function Wn.Open(conv, opts)
         w = acquire()
         w.conv = conv
         byKey[conv.key] = w
-        place(w)
+        place(w, opts.at)
     end
     local f = w.frame
     if not f:IsShown() or w.pane.conv ~= conv then
         w.pane.composeFrame:Show()
         f:Show()
         w.pane:SetConv(conv) -- the New line, read, the contact refreshed
-    else
-        ns.Store.MarkRead(conv)
+    elseif not (opts.whisper and w.fader:Idle()) then
+        ns.Store.MarkRead(conv) -- brought up by a whisper while nobody is at it: unread
     end
     front(w)
     if opts.text then w.pane.compose:SetText(opts.text) end
     if opts.focus then w.pane.compose:Focus() end
-    w.fader:Wake()
+    if opts.whisper then w.fader:Flash() else w.fader:Wake() end
     ns.Toast.HideFor(conv)
     ns.Rail.Refresh()
     return w
@@ -484,10 +523,17 @@ end
 --  Events (the window sends them here while the setting is on)
 -------------------------------------------------------------------------------
 -- A whisper for a conversation whose window is on screen: it wakes up.
-function Wn.Wake(conv)
+-- A whisper for a window in view: it lights up (the player is no nearer).
+function Wn.Flash(conv)
     local w = Wn.For(conv)
-    if w and w.frame:IsShown() then w.fader:Wake() end
+    if w and w.frame:IsShown() then w.fader:Flash() end
 end
+
+-- Whispers came in unseen (a faded or covered window): the New line above the first.
+ns.Listen("UNREAD_CHANGED", function(conv)
+    local w = Wn.For(conv)
+    if w and w.frame:IsShown() and w.pane.conv == conv and (conv.unread or 0) > 0 then w.pane:MarkNew() end
+end)
 
 function Wn.OnMessage(conv)
     local w = Wn.For(conv)

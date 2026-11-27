@@ -8,7 +8,8 @@
 --  One log per pane (the window's, and each separate window's):
 --    ns.Log.New(frame) -> log    log:SetConv(conv, firstUnread), log:Refresh(),
 --                                log:Render(), log:OnMessage(conv), log:Scroll(d),
---                                log:ScrollToBottom(), log:Clear()
+--                                log:ScrollToBottom(), log:Clear(),
+--                                log:SetNew(i) (the New line above message i)
 -------------------------------------------------------------------------------
 local _, ns = ...
 local Lg = {}
@@ -34,7 +35,7 @@ Log.__index = Log
 local function build(self)
     local items = {}
     self.items = items
-    local conv, newIndex = self.conv, self.newIndex
+    local conv, newMsg = self.conv, self.newMsg
     if not conv then return end
     local prevDay, prev
     local now = time()
@@ -44,7 +45,7 @@ local function build(self)
             items[#items + 1] = { kind = "day", text = ns.Format.Day(msg.t, now) }
             prevDay, prev = day, nil
         end
-        if newIndex and i == newIndex then
+        if newMsg and msg == newMsg then
             items[#items + 1] = { kind = "new" }
             prev = nil
         end
@@ -259,13 +260,16 @@ function Log:Refresh(remeasure)
 end
 
 function Log:SetConv(c, firstUnread)
-    self.conv, self.newIndex, self.offset = c, firstUnread, 0
+    -- The New line goes with its message (not its place: the oldest go at 400,
+    -- Clear history empties the list).
+    self.conv, self.offset = c, 0
+    self.newMsg = (c and firstUnread) and c.msgs[firstUnread] or nil
     self.jump:Hide()
     self:Refresh()
 end
 
 function Log:Clear()
-    self.conv, self.newIndex = nil, nil
+    self.conv, self.newMsg = nil, nil
     self:Refresh()
 end
 
@@ -279,6 +283,17 @@ function Log:OnMessage(c)
         self.offset = self.offset + (self.total - before)
         self.jump:Show()
     end
+    self:Render()
+end
+
+-- Whispers came in unseen (a faded or covered window): the New line goes above
+-- the first of them; scrolled back, the place stays.
+function Log:SetNew(i)
+    self.newMsg = self.conv and self.conv.msgs[i] or nil
+    local before = self.total
+    build(self)
+    layout(self)
+    if self.offset > 0 then self.offset = self.offset + (self.total - before) end
     self:Render()
 end
 

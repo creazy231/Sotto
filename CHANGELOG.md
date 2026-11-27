@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.5.0
+
+- Keep windows open (Settings, Look; on unless you turn it off): Sotto's windows stay on
+  screen until you close them. Esc, loading screens, dying, losing control of your
+  character and hiding the interface (Alt+Z) no longer close them; they still fade while
+  you are not using them. After a reload or the next login, what was open comes back: the
+  window on the conversation it showed, or with separate windows the dock and every window
+  in its place, the front one in front. What you closed or minimised stays that way, and
+  the dock shows and hides only when you say so. After WoW Forever's gamepad interface,
+  what it closed comes back too. Turned off, Sotto works as before: Esc closes its windows
+  and nothing comes back after a reload.
+- A click into the game world gives the keyboard back to the game, as in WIM: the cursor
+  leaves Sotto's box (your draft stays) and your movement keys move you again, now also
+  after a right-click (to loot, talk or attack). Holding the right mouse button to steer
+  leaves it in the box.
+- A friend who comes online or goes offline while you look at your conversation with them
+  gets a line there ("Tarin came online"), Battle.net friends too.
+- A whisper that comes into a faded window while you are away now counts as unread: its
+  badge, the minimap button and a "New" line above it show it until you look, that is
+  until the mouse comes over the window or you click or type in it. Before, a window that
+  was simply open read everything. With "Fade when idle" off, nothing changes.
+- "Invite to guild" in a conversation's "…" menu, when you may invite and they are not in
+  your guild yet (a Battle.net friend as the character they play).
+- The invite button only invites a Battle.net friend's character when your game can reach
+  it (the same version of the game, their realm known; on Retail with the realm name if it
+  is another one). Before, a friend playing another version could have sent your invite to
+  someone here with the same name.
+
 ## 1.4.0
 
 - Separate windows (Settings, Look; off unless you turn it on): every conversation in its

@@ -56,7 +56,9 @@ T.it("with separate windows a whisper opens its own window, not the rail window"
     T.eq(c.unread, 0, "read: it is on screen")
     T.no(W.focus, "no keyboard focus taken")
     T.ok(w.frame:GetName():find("^SottoConv%d+$"), "a named frame")
-    T.has(G.UISpecialFrames, w.frame:GetName(), "Esc minimises it")
+    for _, name in ipairs(G.UISpecialFrames) do
+        T.no(name == w.frame:GetName(), "Esc leaves it open (Keep windows open)")
+    end
     T.ok(UI.IsShown(), "Sotto is on screen")
     T.ok(UI.Sees(c))
 end)
@@ -1081,8 +1083,9 @@ T.it("minimising a window you type in hands the keyboard back", function()
     T.eq(W.focus, nil)
 end)
 
-T.it("Esc minimises every window and the dock; the conversations stay", function()
+T.it("with Keep windows open off, Esc minimises every window and the dock; the conversations stay", function()
     local G, W, ns, UI = separate()
+    ns.Set("keepOpen", false)
     whisper(W, "a", "Aaa")
     whisper(W, "b", "Bbb")
     UI.Toggle()
@@ -1105,8 +1108,9 @@ T.it("a window minimised under the mouse paints nothing when shift is pressed la
     T.eq(b.icon:GetTexture(), MEDIA .. "Icons\\minimise", "and no cross")
 end)
 
-T.it("Esc on the asking window lets it go and hands the keyboard back", function()
+T.it("with Keep windows open off, Esc on the asking window lets it go and hands the keyboard back", function()
     local G, W, ns, UI = separate()
+    ns.Set("keepOpen", false)
     UI.NewConversation()
     local w = asking(ns)
     T.eq(W.focus, w.pane.prompt.edit)

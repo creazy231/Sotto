@@ -548,7 +548,7 @@ function F.new(opts)
     local root = newObject("Frame", "UIParent", nil)
     root._isRoot = true
     G.UIParent = root
-    G.WorldFrame = root
+    G.WorldFrame = newObject("Frame", "WorldFrame", nil) -- the 3D world: gets the clicks no frame takes
     G.Minimap = G.CreateFrame("Frame", "Minimap", root)
     G.Minimap:SetSize(200, 200)
     G.Minimap:SetPoint("TOPRIGHT", root, "TOPRIGHT", -10, -10)
@@ -558,6 +558,8 @@ function F.new(opts)
     G.CreateColor = function(r, g, b, a) return { r = r, g = g, b = b, a = a or 1, GetRGBA = function(c) return c.r, c.g, c.b, c.a end } end
     G.GetCursorPosition = function() return W.cursorX or 0, W.cursorY or 0 end
     G.GetMouseFocus = function() return W.mouseFocus end
+    G.GetCurrentKeyBoardFocus = function() return W.focus end
+    G.IsMouseButtonDown = function(b) return W.mouseDown ~= nil and W.mouseDown[b] == true end
     G.UISpecialFrames = {}
     G.STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF"
     G.GameFontNormal = {}
@@ -814,7 +816,18 @@ function F.new(opts)
         local r = W.guild[i]
         if r then return r.name, r.rank or "", 0, r.level, r.class, r.zone, "", "", r.online, 0, r.classFile end
     end
-    G.C_GuildInfo = { GuildRoster = function() W.rosterRequested = true end }
+    G.CanGuildInvite = function() return W.canGuildInvite == true end -- W.canGuildInvite: may invite
+    G.WOW_PROJECT_MAINLINE, G.WOW_PROJECT_CLASSIC = 1, 2
+    G.WOW_PROJECT_ID = 1
+    G.GetRealmID = function() return W.realmID or 1 end
+    G.C_GuildInfo = {
+        GuildRoster = function() W.rosterRequested = true end,
+        Invite = function(n) W.guildInvited = n end,
+        MemberExistsByName = function(n)
+            for _, r in ipairs(W.guild) do if r.name == n then return true end end
+            return false
+        end,
+    }
     G.C_PartyInfo = { InviteUnit = function(n) W.invited = n end }
     G.InviteUnit = function(n) W.invited = n end
     G.BNGetNumFriends = function() return #W.bnFriends end

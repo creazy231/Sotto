@@ -1,8 +1,10 @@
 -------------------------------------------------------------------------------
 --  Sotto: saved variables (SottoDB, account-wide) and settings.
---    settings   the eleven options of the settings view
+--    settings   the twelve options of the settings view
 --    window     position and size of the window (with separate windows: the dock's
---               corner and the full size its settings open at)
+--               corner and the full size its settings open at); shown and conv: whether
+--               it was on screen at logout and the conversation it showed (Keep
+--               windows open brings it back at the next login)
 --    chars      per character: { [charKey] = { convs = { [key] = conv } } }
 --    bn         Battle.net conversations, shared by all characters
 -------------------------------------------------------------------------------
@@ -15,6 +17,7 @@ ns.DEFAULTS = {
         hideInChat = true,
         intercept = true,
         separate = false,      -- a window per conversation (WIM's way) instead of the rail window
+        keepOpen = true,       -- Esc, loading screens and the like leave the windows open; a login brings them back
         accent = "class",      -- "class" | "eui"
         scale = 1,             -- 0.5 to 2: the window, its menu, the notifications, the copy box
         fontSize = 13,

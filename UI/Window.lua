@@ -2,11 +2,14 @@
 --  Sotto: the window. Rail + chat (approved mockup, 410 x 306 by default):
 --  the rail on the left; on the right one of three views: a conversation
 --  (the chat column, UI/Pane.lua), the settings, or the empty view.
---  It moves by its header or the mark, resizes from the corner, closes with
---  Esc, remembers where it was, takes the Scale setting (its bottom-left
---  corner stays put), and fades while idle. In WoW Forever's gamepad
---  interface (ns.Gamepad) no whisper opens it or a notification, and the
---  switch to that interface closes both; by hand it still opens.
+--  It moves by its header or the mark, resizes from the corner, remembers
+--  where it was, takes the Scale setting (its bottom-left corner stays put),
+--  and fades while idle. With "Keep windows open" (on by default) Esc and
+--  loading screens leave it open and a login brings back what was on screen;
+--  off, Esc closes it. In WoW Forever's gamepad interface (ns.Gamepad) no
+--  whisper opens it or a notification, and the switch to that interface
+--  closes both (Keep windows open brings them back after it); by hand it
+--  still opens.
 --  With "Separate windows" on, every conversation opens in its own window
 --  (UI/Windows.lua) and this window is the dock: the rail alone ("dock"
 --  view), as tall as its conversations, growing up from its saved corner;
@@ -46,7 +49,7 @@ if win.SetResizeBounds then win:SetResizeBounds(320, 200, 900, 720) end
 if win.SetDontSavePosition then win:SetDontSavePosition(true) end
 win:EnableMouse(true)
 win:Hide()
-tinsert(UISpecialFrames, "SottoWindow")
+W.Escapable("SottoWindow") -- Esc closes it only with Keep windows open off
 
 win.bg = W.Fill(win, "bg", "BACKGROUND", -7)
 win.bg:SetAllPoints()
@@ -393,9 +396,19 @@ end)
 -------------------------------------------------------------------------------
 --  Idle fade
 -------------------------------------------------------------------------------
-local fader = W.Fader(win, function() return UI.compose:HasFocus() end)
+-- The player at the window reads the conversation it shows.
+local fader = W.Fader(win, function() return UI.compose:HasFocus() or pane.prompt.edit:HasFocus() end, function()
+    if view == "chat" and active and (active.unread or 0) > 0 then ns.Store.MarkRead(active) end
+end)
 
 function UI.Wake() fader:Wake() end
+
+-- On screen with the player at it lately: a whisper is read. One into a faded
+-- window counts unread until the player looks (the mouse over it, its keyboard).
+function UI.Reads(conv)
+    if separate() then return ns.Windows.Reads(conv) end
+    return UI.Sees(conv) and not fader:Idle()
+end
 
 win:SetScript("OnShow", function()
     fader:Start()
@@ -421,19 +434,24 @@ ns.Listen("INCOMING", function(conv, msg, wantOpen)
         -- A window opening (or coming up) over the box the player types in
         -- would hide what they type: a card instead, as in combat.
         if ns.Windows.Sees(conv) then
-            ns.Windows.Wake(conv)
+            ns.Windows.Flash(conv)
         elseif ns.Gamepad() then
             return
         elseif wantOpen and not ns.Windows.TypingElsewhere(conv) then
-            ns.Windows.Open(conv)
+            ns.Windows.Open(conv, { whisper = true })
         else
             ns.Toast.Show(conv, msg)
         end
         return
     end
     if win:IsShown() then
-        UI.Wake()
-        if view == "empty" then UI.Select(conv) end
+        fader:Flash()
+        if view == "empty" then
+            -- Taken up while nobody is at the window, it stays unread.
+            local away, n = fader:Idle(), conv.unread or 0
+            UI.Select(conv)
+            if away and n > 0 then ns.Store.MarkUnread(conv, n) end
+        end
     elseif ns.Gamepad() then
         return -- the game's own chat has it, made for the controller
     elseif wantOpen then
@@ -489,7 +507,14 @@ ns.Listen("CONTACT_UPDATED", function(conv)
     ns.Rail.Refresh()
 end)
 
-ns.Listen("UNREAD_CHANGED", function() ns.Rail.Refresh() end)
+ns.Listen("UNREAD_CHANGED", function(conv)
+    -- Whispers came in unseen (a faded window): the New line above the first.
+    if conv and conv == active and view == "chat" and win:IsShown() and not separate()
+        and (conv.unread or 0) > 0 then
+        pane:MarkNew()
+    end
+    ns.Rail.Refresh()
+end)
 
 ns.Listen("CONTACTS_REFRESHED", function()
     UI.UpdateHeader()
@@ -515,13 +540,107 @@ ns.Listen("COMPOSE_FOCUS", function(_, compose)
     if compose == UI.compose then UI.Wake() end
 end)
 
+-------------------------------------------------------------------------------
+--  Keep windows open: what is on screen at logout comes back at the next login
+--  (the window on its conversation; with separate windows the dock and every
+--  window in its place, the front one in front), and what the gamepad interface
+--  hid comes back after it. Closed or minimised by hand stays so, and so does a
+--  conversation closed meanwhile.
+-------------------------------------------------------------------------------
+local stash    -- what was on screen when the gamepad interface took over
+local restored -- the login brought it back (later loading screens bring nothing)
+
+-- { window = shown, conv = the window's conversation, wins = { { conv, x, y } } }
+local function snapshot()
+    return { window = win:IsShown(), conv = (not separate()) and active or nil, wins = ns.Windows.Shown() }
+end
+
+-- Into the way the setting says now (it may have changed while the gamepad
+-- interface held them): the window's conversation gets its own window, or the
+-- window shows the separate window that was in front.
+local function restore(s)
+    if not s then return end
+    local wins = s.wins or {}
+    if separate() then
+        if s.window and not win:IsShown() then UI.Show() end
+        if #wins == 0 and s.conv then wins = { { conv = s.conv } } end
+        local kept = {}
+        for _, it in ipairs(wins) do
+            local conv = it.conv
+            if conv and conv.open then
+                kept[#kept + 1] = { conv, conv.unread or 0 }
+                ns.Windows.Open(conv, { at = (it.x and it.y) and { it.x, it.y } or nil })
+            end
+        end
+        -- Opening reads a window; one that came back covered keeps its unread.
+        for _, k in ipairs(kept) do
+            if k[2] > 0 and not ns.Windows.Sees(k[1]) then ns.Store.MarkUnread(k[1], k[2]) end
+        end
+        return
+    end
+    local conv = s.conv
+    for i = #wins, 1, -1 do
+        if not (conv and conv.open) then conv = wins[i].conv end
+    end
+    if (s.window or #wins > 0) and not win:IsShown() then
+        if conv and conv.open then UI.Open(conv) else UI.Show() end
+    end
+end
+
+-- Saved: the window's state in SottoDB.window (shown, conv), each separate
+-- window's in its conversation (conv.up = { n = its place in the stack, x, y }),
+-- so another character's conversations keep theirs.
+local function save(s)
+    local g = ns.DB and ns.DB.window
+    if not g then return end
+    g.shown = s.window and true or nil
+    g.conv = s.conv and s.conv.key or nil
+    for _, conv in ipairs(ns.Store.List()) do conv.up = nil end
+    for i, it in ipairs(s.wins or {}) do
+        if it.conv then it.conv.up = { n = i, x = it.x, y = it.y } end
+    end
+end
+
+local function saved()
+    local g = ns.DB and ns.DB.window
+    if not g then return nil end
+    local wins = {}
+    for _, conv in ipairs(ns.Store.List()) do
+        local up = conv.up
+        if type(up) == "table" then
+            wins[#wins + 1] = { conv = conv, x = tonumber(up.x), y = tonumber(up.y), n = tonumber(up.n) or 0 }
+        end
+    end
+    table.sort(wins, function(a, b) return a.n < b.n end)
+    local conv = type(g.conv) == "string" and ns.Store.Get(g.conv) or nil
+    return { window = g.shown == true, conv = conv, wins = wins }
+end
+
+ns.On("PLAYER_LOGOUT", function() save(stash or snapshot()) end)
+
+-- The session's first loading screen, after the login pruned old history.
+ns.On("PLAYER_ENTERING_WORLD", function()
+    if restored then return end
+    restored = true
+    if not ns.Get("keepOpen") then return end
+    local s = saved()
+    if ns.Gamepad() then stash = s else restore(s) end
+end)
+
 -- Into the gamepad interface: the controller cannot reach the window or the
--- notifications, and the game's own chat takes the whispers from now on.
+-- notifications, and the game's own chat takes the whispers from now on. Out
+-- of it, Keep windows open shows again what it hid.
 ns.Listen("GAMEPAD_CHANGED", function(on)
-    if on ~= true then return end
-    ns.Toast.HideAll()
-    UI.Hide()
-    ns.Windows.HideAll()
+    if on == true then
+        stash = stash or snapshot() -- a stash from the login is what to bring back
+        ns.Toast.HideAll()
+        UI.Hide()
+        ns.Windows.HideAll()
+        return
+    end
+    local s = stash
+    stash = nil
+    if ns.Get("keepOpen") then restore(s) end
 end)
 
 -- Separate windows on: the conversation shown here moves into its own window

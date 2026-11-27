@@ -110,11 +110,11 @@ reskinning WIM further (keeps WIM's options and complexity) or forking WIM (huge
   hover 7 %, selected 11 %. Contact and accent colours lifted to 4.5:1 on the panel.
 - **Fonts:** EllesmereUI's font, no outline, 1 px shadow; names in "Expressway Bold" when
   the EUI font is Expressway (falls back to the regular font). Without EUI: the game font.
-- **Settings (11):** Open the window (Always / Out of combat / Never), Sound (Soft chime /
+- **Settings (12):** Open the window (Always / Out of combat / Never), Sound (Soft chime /
   Game whisper / None), Hide whispers from the chat window, Use Sotto to whisper, Separate
-  windows (2026-11-15), Accent (Class colour / EllesmereUI), Scale (50–200 %), Text size
-  (11–16), Fade when idle, Remember conversations (Until logout / 7 / 30 / 90 days),
-  Minimap button.
+  windows (2026-11-15), Keep windows open (2026-11-22), Accent (Class colour /
+  EllesmereUI), Scale (50–200 %), Text size (11–16), Fade when idle, Remember
+  conversations (Until logout / 7 / 30 / 90 days), Minimap button.
 - **Scale** (2026-11-14, the user's request): 50 to 200 % in steps of 5, default 100 %, for
   everything Sotto draws on UIParent: the window, its menu, the notifications and the copy
   box (not the minimap button, which follows the minimap). The window's bottom-left corner
@@ -207,8 +207,9 @@ reskinning WIM further (keeps WIM's options and complexity) or forking WIM (huge
   EllesmereSkin_WIM, then offers a reload). Sotto keeps working either way.
 - **whisperMode:** when the game is set to open whispers in new tabs, the settings show a
   one-click switch to "In-line".
-- **Esc** closes the window (UISpecialFrames) unless the compose box has focus, which Esc
-  clears first.
+- **Esc** clears the compose box's focus first. With "Keep windows open" off it then closes
+  the window (UISpecialFrames); on (the default since 2026-11-22) it leaves the window
+  alone, see "Keep windows open" below.
 - **WoW Forever's gamepad interface** (2026-11-14, the user's request; 1.1.0): Sotto steps
   aside while it is on. Why: the controller cannot reach an addon's window there (Forever's
   only pointer, the soft cursor, serves the map and the colour picker; Blizzard's gamepad
@@ -271,8 +272,8 @@ icon lists the conversations.
 - **Everything else follows the conversation's window:** the reply keys, "Whisper" in menus,
   the group finder, a whisper sent from chat and a notification's click open or focus it; a
   shown window counts as read; typing in it mutes the chime for it; Tab moves to the next open
-  window; Esc minimises every window (WIM's escape); the gamepad interface hides them; the
-  lockdown banner and the WIM notice show in each.
+  window; with "Keep windows open" off Esc minimises every window (WIM's escape); the
+  gamepad interface hides them; the lockdown banner and the WIM notice show in each.
 - **Switching:** on: a conversation shown in the window moves into its own window at the
   same place, the window docks. Off: the separate windows close and the window shows the one
   used last. Drafts are per conversation either way.
@@ -285,7 +286,8 @@ icon lists the conversations.
     up after it lies over a quarter of it or more. A whisper to a covered window brings it to
     the front (read), unless the player is typing in another window or "Open the window" says
     no (combat, Never): then it counts unread and a card shows. Clicking, dragging or typing
-    in a window brings it up and reads it; one that comes back into view is read.
+    in a window brings it up and reads it; one that comes back into view is read. (Since
+    2026-11-22 a faded window's whispers wait for a look: "Unread while faded".)
   - While the player types in one window, a whisper for another never opens a window over
     the box: a card instead, as in combat.
   - The cards stack up from above the window's place (the windows open over its corner),
@@ -301,6 +303,138 @@ icon lists the conversations.
   - The "+" window moves by its name field, and its message box waits for the name.
   - A conversation closed while the settings are open no longer throws them away on the
     next whisper (the rail window did that too).
+
+## Keep windows open (2026-11-22)
+
+The user's words: "in the options there should be a way (on by default) to keep the chat
+window or windows permanently open. Reducing the opacity after a while, as now, is good,
+but closing completely is not nice. With every chat in its own window it should also be
+possible for the bar with all the chat tabs to stay permanently." Built while the user was
+away; every call below is mine.
+
+What closed the window: it was one of the game's special frames (UISpecialFrames), and
+Blizzard's CloseAllWindows hides them all, not only on Esc but on every loading screen
+(`PLAYER_ENTERING_WORLD`), on death, when the player loses control (fear, stun), when a
+full-screen panel opens and when UIParent shows again after Alt+Z
+(Blizzard_UIParentPanelManager, Blizzard_Game; forever branch 1.60.1). WIM's own
+"Escape Hides Windows" (on by default) adds and removes its windows from that list the same
+way.
+
+- **Setting:** Look → "Keep windows open" (a switch, on), right under "Separate windows":
+  "Esc and loading screens leave them open, and they come back after a reload". Twelve
+  settings.
+- **On:** Sotto's windows (the window or dock, and every separate window) are not special
+  frames (`W.Escapable`), so nothing but the player closes them; the idle fade stays as it
+  was. Menus and the copy box stay special frames (Esc still closes them). Esc in a box
+  still only leaves the box.
+- **Off:** as before: Esc and the rest close the window and minimise the separate windows.
+- **Back after a reload or login:** what was on screen at logout (`PLAYER_LOGOUT`) comes back
+  at the session's first loading screen, after the login's pruning: the window on the
+  conversation it showed (`SottoDB.window.shown`, `.conv`), or with separate windows the dock
+  and every shown window in its place, in its order (`conv.up = { n, x, y }`, kept per
+  conversation, so another character's conversations keep theirs and Battle.net ones are
+  shared). A place the player chose (`conv.win`) still wins; a remembered one is not saved as
+  theirs. Closed or minimised windows stay so; a conversation pruned or closed meanwhile does
+  not come back. Later loading screens bring nothing back.
+- **The dock is the player's:** shown and hidden only by hand (the minimap button, `/sotto`,
+  the Toggle key, the compartment), and with the setting on it stays until they hide it,
+  across reloads. A window opening does not bring the dock (a dock that keeps coming back
+  after being hidden would be the opposite of what was asked).
+- **The gamepad interface** still hides everything (the controller cannot reach it); with the
+  setting on, the way back shows again what it hid, and a logout or login in that interface
+  keeps it for when mouse and keyboard are back.
+- **After the fresh-eyes review (same day):** a window that comes back covered keeps what it
+  had unread (opening reads a window); a remembered place taken meanwhile (a window opened by
+  hand in the gamepad interface) gives way to the next free step; turning "Separate windows" on
+  or off while the gamepad interface holds the windows brings them back the new way (the
+  window's conversation in its own window, or the window on the separate window that was in
+  front); a gamepad interface the client reports only after the first loading screen keeps
+  what the login was to bring back.
+- **Left as it was:** a whisper to a window that is open on another conversation lights the
+  window up and counts unread in the rail, as before; it does not switch the conversation
+  (a whisper shown for a moment in an idle window and then replaced would count as read
+  unseen). Whispers into a conversation that is on screen counted as read even while the
+  window was faded; the user then chose to change that ("Unread while faded" below).
+
+## Checked against WIM 3.19.8 (2026-11-22)
+
+Read from WIM 3.19.8 (installed, 2026-11-20): its options (`Sources/Options/ModernOptions.lua`),
+`Modules/ClickControl.lua`, `Modules/Expose.lua`, `Modules/ShortcutBar.lua`, `Sources/WindowHandler.lua`
+and its changelog. Built from it:
+
+- **A click into the game world gives the keyboard back** (WIM's "Click to Release Focus", on
+  by default there): a short click (0.25 s or less, WIM's limit is 0.2 s) with any button on
+  the world frame lets go of a box of Sotto's (compose boxes, name fields; `W.ReleasedByWorld`),
+  so the movement keys move the character again; the box keeps its text. A click held longer
+  steers and keeps the box, and so does one tapped while the other button is held (WIM's
+  `buttonCount < 2`). Unlike WIM, in combat too (clicking the world then means fighting).
+  Other addons' boxes are left alone. No setting. On WoW Forever and Retail the game itself
+  already lets go of any box on a plain left mouse-down outside it (Blizzard_Game Mainline
+  `ClearCurrentKeyboardFocus`, which Forever runs too), so there this adds the right and
+  middle buttons; on clients without that it does all of it.
+- **Online and offline lines** (WIM 3.19.8 routes these notices into the player's window): a
+  friend who comes online or goes offline while their conversation is on screen gets a line
+  there ("Tarin came online"; Battle.net friends from their toast, named by their account
+  name when no BattleTag is readable; a friend Forever whispers by character in that
+  character's conversation, found by the character Forever named for them last this session,
+  as it names none once they are offline); the same notice again within a minute adds
+  nothing. The line leaves the rail's order alone (`Store.Add`'s `keepOrder`). The chat window
+  keeps its own notice (Sotto hides no friend notices).
+
+Offered to the user: hiding the windows in combat (WIM's "Expose", on by default there; with
+permanent windows it would come and go with every pull), whispers into a faded window
+counting unread until the player looks, a growing multi-line box, names suggested while
+typing in "Whisper to", a list of earlier conversations, "Invite to guild" in the "…" menu.
+The user picked the unread rule and "Invite to guild" (built below) and wants to test 1.5.0
+in game before it is released. Still non-goals: emoticons, RP profiles, whisper filters, a
+history browser, skins, channel windows, `/who` lookups.
+
+## Unread while faded, Invite to guild (2026-11-22, the user's pick)
+
+- **A whisper counts as read only while someone is at its window:** its conversation on
+  screen (shown, the chat view, not covered) and the window not idle, that is the mouse over
+  it, the keyboard in its box or a menu of Sotto's open within the last 4 s (the fade's own
+  timer), or the player just brought it up (the reply key, a /w, a badge, a card, the
+  minimap button: `fader:Wake()`). A whisper's own light-up is `fader:Flash()` and leaves
+  the window idle, so a second whisper during it is unseen too. With "Fade when idle" off
+  nothing changes (`ns.UI.Reads`, `ns.Windows.Reads`).
+- **What came in unseen is read by a look at that window:** the mouse over it or its
+  keyboard (`W.Fader`'s `look`); not a menu open elsewhere, not the dock, not a window
+  another lies over. A click on its badge, its card or into it reads it as before.
+- **Its badge, the minimap button and the New line show it:** the New line moves above the
+  first unseen whisper and stays once read, as for a conversation opened unread; scrolled
+  back, the view keeps its place.
+- **Separate windows:** a whisper that brings a covered window to the front while nobody is
+  at it leaves it unread (it still comes up); one that comes back into view while faded waits
+  for a look too.
+- **The empty window** (no conversation) takes up a whisper as before; idle, it stays unread.
+- **Unchanged:** online and offline lines still go into a faded window (on screen is on
+  screen); a window opened for a whisper (it was hidden or minimised) reads it as before.
+- **"Invite to guild"** in the "…" menu after "Add friend": shown while the player may invite
+  (`CanGuildInvite`) and the contact is a character not in the guild yet
+  (`C_GuildInfo.MemberExistsByName`): a character conversation, or a Battle.net friend as the
+  character they play; `C_GuildInfo.Invite`, in every client (checked in wow-ui-source: live,
+  classic, classic_era, classic_anniversary, classic_titan, forever).
+- **After the fresh-eyes review (same day):**
+  - *A Battle.net friend's character is invited only when this game can reach it*, as
+    Blizzard's friends list decides it (Camelot `FriendsFrame.lua`): the same version of the
+    game (`wowProjectID`), realm info, on Classic the same realm; on Retail another realm
+    adds "-Realm"; WoW Forever's names are unique without one (`conv.invite`, set by
+    `Contacts`). Before, a friend playing Classic as "Robin" got "Robin" invited here, maybe a
+    stranger. The header's group invite had the same flaw and follows the same rule now.
+  - *The player at a window* is the mouse over it with nothing lying on top there
+    (`W.MouseIn`: the topmost frame under the cursor is the window's own; a frame the game
+    keeps from addons counts as something else), over its own menu, or its keyboard (the box
+    or the "Whisper to" field). A menu open from another window neither reads a window nor
+    keeps it lit; a menu left open with nobody at it no longer keeps every whisper read.
+  - *Nobody can see a hidden interface* (Alt+Z): a whisper then counts unread.
+  - *The New line goes with its message*, not its place: the oldest messages go at 400, and
+    Clear history no longer leaves a line behind.
+  - *Alt+Z no longer minimises separate windows*: WoW hides UIParent's children with it
+    (OnHide while their own shown flag stays on); a window hidden that way comes back with
+    the interface.
+  - *Left as it is:* scrolled back, a New line that moves from above the view to a newer
+    whisper shifts the view by its own height (rare, a look only).
 
 ## Left to the builder
 

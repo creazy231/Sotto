@@ -241,14 +241,38 @@ end
 --  Idle fade ("Fade when idle"): 4 s without the mouse over the frame, its
 --  keyboard (busy) or an open menu, and it fades to 42 %; anything that wakes
 --  it brings it back. A 0.25 s check while shown; the tween runs only while
---  the alpha moves.
---    W.Fader(frame, busy) -> fader   fader:Start() when shown, :Stop() when
---                                    hidden, :Wake()
+--  the alpha moves. The player at it (the mouse over it, its keyboard) calls
+--  look(), which reads what it shows. A whisper only flashes it: it lights up,
+--  but it stays idle, so what comes in while nobody is at it waits for a look.
+--    W.Fader(frame, busy, look) -> fader   fader:Start() when shown, :Stop() when
+--                                          hidden, :Wake() (the player brought it
+--                                          up), :Flash() (a whisper), :Idle()
 -------------------------------------------------------------------------------
 local IDLE_AFTER, IDLE_ALPHA, FADE_TIME = 4, 0.42, 0.3
 
-function W.Fader(frame, busy)
-    local f = { idleSince = 0, target = 1 }
+-- The mouse is over the frame and nothing else lies on top of it there: the
+-- topmost frame under the cursor is it or one of its own (one the game keeps
+-- from addons counts as something else).
+function W.MouseIn(frame)
+    if not frame:IsMouseOver() then return false end
+    local top
+    if GetMouseFoci then
+        local foci = GetMouseFoci()
+        top = type(foci) == "table" and foci[1] or nil
+    elseif GetMouseFocus then
+        top = GetMouseFocus()
+    end
+    if not top then return true end
+    while top do
+        if top.IsForbidden and top:IsForbidden() then return false end
+        if top == frame then return true end
+        top = top:GetParent()
+    end
+    return false
+end
+
+function W.Fader(frame, busy, look)
+    local f = { idleSince = 0, presentAt = 0, target = 1 }
 
     local function tween(self, elapsed)
         local cur = self:GetAlpha()
@@ -268,17 +292,36 @@ function W.Fader(frame, busy)
         frame:SetScript("OnUpdate", tween)
     end
 
-    local function awake()
-        if not ns.Get("fadeIdle") then return true end
-        if frame:IsMouseOver() or (busy and busy()) then return true end
+    -- The menu of Sotto's opened from this frame (its "…", a badge's), if one is open.
+    local function ownMenu()
         local menu = W.CurrentMenu()
-        if menu and menu:IsShown() then return true end
-        return false
+        if not (menu and menu:IsShown()) then return nil end
+        local a = menu.anchor
+        while a do
+            if a == frame then return menu end
+            a = a:GetParent()
+        end
+        return nil
+    end
+
+    -- The player is at the frame: the mouse over it (nothing lying on top there)
+    -- or over its menu, or its keyboard.
+    local function present()
+        if W.MouseIn(frame) then return true end
+        local menu = ownMenu()
+        if menu and menu:IsMouseOver() then return true end
+        return busy ~= nil and busy() == true
     end
 
     local function check()
         if not frame:IsShown() then return end
-        if awake() then
+        local here = present()
+        if here then
+            f.presentAt = GetTime()
+            if look then look() end
+        end
+        -- Its own menu open keeps it lit, but only the player at it counts.
+        if here or not ns.Get("fadeIdle") or ownMenu() then
             f.idleSince = GetTime()
             fadeTo(1)
         elseif GetTime() - f.idleSince >= IDLE_AFTER then
@@ -286,13 +329,30 @@ function W.Fader(frame, busy)
         end
     end
 
+    -- The player brought it up.
     function f:Wake()
+        self.idleSince = GetTime()
+        self.presentAt = GetTime()
+        fadeTo(1)
+    end
+
+    -- A whisper came: it lights up, the player is no nearer.
+    function f:Flash()
         self.idleSince = GetTime()
         fadeTo(1)
     end
 
+    -- Nobody has been at it for IDLE_AFTER seconds, or nobody can see it (the
+    -- interface hidden); never while Fade when idle is off.
+    function f:Idle()
+        if not ns.Get("fadeIdle") then return false end
+        if not frame:IsVisible() then return true end
+        return not present() and GetTime() - self.presentAt >= IDLE_AFTER
+    end
+
     function f:Start()
         self.idleSince = GetTime()
+        self.presentAt = GetTime()
         frame:SetAlpha(1)
         self.target = 1
         if not self.ticker then self.ticker = C_Timer.NewTicker(0.25, check) end
@@ -304,6 +364,72 @@ function W.Fader(frame, busy)
     end
 
     return f
+end
+
+-------------------------------------------------------------------------------
+--  Keep windows open: a window of Sotto's is one of the game's special frames
+--  (UISpecialFrames: Blizzard's CloseAllWindows hides them on Esc, on every
+--  loading screen, on death, when the player loses control and after Alt+Z)
+--  only while the setting is off. Menus and the copy box always are.
+--    W.Escapable(name)   a window's frame name; it follows the setting
+-------------------------------------------------------------------------------
+local escapable = {}
+
+local function listEsc(name, on)
+    local list = UISpecialFrames
+    for i = #list, 1, -1 do
+        if list[i] == name then table.remove(list, i) end
+    end
+    if on then list[#list + 1] = name end
+end
+
+local function applyEsc()
+    local on = not ns.Get("keepOpen")
+    for _, name in ipairs(escapable) do listEsc(name, on) end
+end
+
+function W.Escapable(name)
+    escapable[#escapable + 1] = name
+    listEsc(name, not ns.Get("keepOpen"))
+end
+
+ns.Listen("DB_READY", applyEsc)
+ns.Listen("SETTING_CHANGED", function(key) if key == "keepOpen" then applyEsc() end end)
+
+-------------------------------------------------------------------------------
+--  A click into the game world gives the keyboard back to the game (WIM's
+--  "Click to Release Focus"): a short click on the world frame, with any
+--  button, not one held to steer and not one tapped while the other button is
+--  held, lets go of a box of Sotto's that has the keyboard, so the movement
+--  keys move the character again. The box keeps its text. (On WoW Forever and
+--  Retail the game itself lets go of any box on a plain left mouse-down outside
+--  it; this adds the right and middle buttons there, and everything elsewhere.)
+--    W.ReleasedByWorld(editBox)   such a box (compose boxes, name fields)
+-------------------------------------------------------------------------------
+local CLICK = 0.25 -- seconds; a click held longer turns the camera
+local BUTTONS = { "LeftButton", "RightButton", "MiddleButton" }
+local released = setmetatable({}, { __mode = "k" })
+local downAt = {}
+
+function W.ReleasedByWorld(box) released[box] = true end
+
+-- Steering with one button while tapping the other is not a click.
+local function otherDown(button)
+    if not IsMouseButtonDown then return false end
+    for _, b in ipairs(BUTTONS) do
+        if b ~= button and IsMouseButtonDown(b) then return true end
+    end
+    return false
+end
+
+if WorldFrame and WorldFrame.HookScript then
+    WorldFrame:HookScript("OnMouseDown", function(_, button) downAt[button or "?"] = GetTime() end)
+    WorldFrame:HookScript("OnMouseUp", function(_, button)
+        local at = downAt[button or "?"]
+        if not at or GetTime() - at > CLICK or otherDown(button) then return end
+        local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+        if focus and released[focus] then focus:ClearFocus() end
+    end)
 end
 
 -------------------------------------------------------------------------------

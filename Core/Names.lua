@@ -19,6 +19,9 @@ local function surnames()
     return RegionalUniqueNamesEnabled ~= nil and RegionalUniqueNamesEnabled() and true or false
 end
 
+-- Names are unique without a realm (WoW Forever's surnames).
+function N.Unique() return surnames() end
+
 local function isOwnRealm(realm)
     local display = GetRealmName and GetRealmName()
     local normalized = GetNormalizedRealmName and GetNormalizedRealmName()

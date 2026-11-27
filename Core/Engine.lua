@@ -119,6 +119,11 @@ local function isActive(conv)
     return ns.UI ~= nil and ns.UI.Sees ~= nil and ns.UI.Sees(conv) == true
 end
 
+-- On screen with the player at it: a whisper is read (a faded window's waits for a look).
+local function reads(conv)
+    return ns.UI ~= nil and ns.UI.Reads ~= nil and ns.UI.Reads(conv) == true
+end
+
 -------------------------------------------------------------------------------
 --  System lines ("No player named ...", "... is ignoring you.", online/offline)
 -------------------------------------------------------------------------------
@@ -307,7 +312,7 @@ local function handle(event, t, recovered, ...)
         lastInKey = conv.key
         -- In the gamepad interface the chat window showed it and alerted.
         local gamepad = ns.Gamepad()
-        if not isActive(conv) and not gamepad then ns.Store.MarkUnread(conv) end
+        if not reads(conv) and not gamepad then ns.Store.MarkUnread(conv) end
         if ns.Get("hideInChat") and not hadSecrets and not gamepad then alert(conv) end
         ns.Fire("INCOMING", conv, msg, E.ShouldOpen(), recovered)
     end
@@ -333,6 +338,23 @@ local function onAway(event, ...)
     ns.Store.Add(conv, "s", line, time(), kind)
 end
 
+-- A friend came online or went offline. While their conversation is on
+-- screen it gets a line (as in WIM), which leaves the rail's order alone; the
+-- chat window keeps its own notice. The same notice again within a minute
+-- adds nothing.
+local PRESENCE_TEXT = { online = "%s came online", offline = "%s went offline" }
+
+local function presence(conv, kind)
+    conv.online = kind == "online"
+    ns.Fire("CONTACT_UPDATED", conv)
+    if not isActive(conv) then return end
+    local last = conv.msgs[#conv.msgs]
+    if last and last.s == kind and time() - last.t < 60 then return end
+    local name = ns.Contacts.Name(conv)
+    local short = ns.Names.Short(name)
+    ns.Store.Add(conv, "s", L[PRESENCE_TEXT[kind]]:format(short ~= "" and short or name), time(), kind, true)
+end
+
 local function onSystem(event, ...)
     local conv, kind = systemMatch((...))
     if not conv or hiddenByOthers(event, ...) then return end
@@ -341,8 +363,7 @@ local function onSystem(event, ...)
         conv.online = kind == "ignored" and conv.online or false
         ns.Store.Add(conv, "s", text, time(), kind)
     elseif kind == "online" or kind == "offline" then
-        conv.online = kind == "online"
-        ns.Fire("CONTACT_UPDATED", conv)
+        presence(conv, kind)
     end
 end
 
@@ -351,12 +372,13 @@ local function onToast(_, ...)
     local process = ...
     local bnID = select(13, ...)
     if (process ~= "FRIEND_ONLINE" and process ~= "FRIEND_OFFLINE") or type(bnID) ~= "number" then return end
+    local kind = process == "FRIEND_ONLINE" and "online" or "offline"
     for _, conv in pairs(ns.DB and ns.DB.bn or {}) do
-        if conv.bnID == bnID then
-            conv.online = process == "FRIEND_ONLINE"
-            ns.Fire("CONTACT_UPDATED", conv)
-        end
+        if conv.bnID == bnID then presence(conv, kind) end
     end
+    -- A friend WoW Forever whispers by character: that character's conversation.
+    local char = ns.Contacts.TitleConv(bnID)
+    if char then presence(char, kind) end
 end
 
 -- A Battle.net whisper to a friend who is offline: no inform comes back, the

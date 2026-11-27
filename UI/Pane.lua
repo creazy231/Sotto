@@ -135,7 +135,7 @@ function Pane:UpdateHeader()
     end
     local sep = " |c" .. ns.Theme.Hex("faint") .. "·|r "
     head.meta:SetText(table.concat(ns.Contacts.Meta(c), sep))
-    local canInvite = c.kind == "w" or (c.kind == "bn" and c.char ~= nil)
+    local canInvite = c.kind == "w" or (c.kind == "bn" and c.invite ~= nil)
     head.invite:SetEnabled(canInvite)
     head.invite:SetAlpha(canInvite and 1 or 0.35)
     if head.tile then ns.Rail.PaintTile(head.tile, c) end
@@ -272,6 +272,7 @@ local function buildPrompt(self, parent, opts)
     prompt.edit = CreateFrame("EditBox", nil, field)
     prompt.edit:SetAllPoints()
     prompt.edit:SetAutoFocus(false)
+    W.ReleasedByWorld(prompt.edit)
     prompt.edit:SetTextInsets(6, 6, 0, 0)
     W.Paint(prompt.edit, function(e)
         e:SetFont(ns.Theme.Font("body"))
@@ -332,6 +333,13 @@ function Pane:SetConv(conv)
     ns.Contacts.Refresh(conv)
 end
 
+-- Whispers came in unseen (a faded or covered window): the New line goes above
+-- the first of them.
+function Pane:MarkNew()
+    local i = self.conv and firstUnreadIndex(self.conv)
+    if i then self.log:SetNew(i) end
+end
+
 -------------------------------------------------------------------------------
 --  Header actions
 -------------------------------------------------------------------------------
@@ -348,10 +356,18 @@ end
 function Pane:Invite()
     local c = self.conv
     if not c then return end
-    local name = c.kind == "bn" and c.char or c.name
+    local name = c.name
+    if c.kind == "bn" then name = c.invite end -- a character this game can reach
     if not name then return end
     local invite = (C_PartyInfo and C_PartyInfo.InviteUnit) or InviteUnit
     if invite then invite(name) end
+end
+
+-- The player may invite this character to their guild, and they are not in it.
+local function guildInvitable(name)
+    if not name or not (CanGuildInvite and CanGuildInvite()) then return false end
+    if not (C_GuildInfo and C_GuildInfo.Invite) then return false end
+    return not (C_GuildInfo.MemberExistsByName and C_GuildInfo.MemberExistsByName(name))
 end
 
 function Pane:MoreMenu(anchor)
@@ -360,6 +376,12 @@ function Pane:MoreMenu(anchor)
     local items = {}
     if c.kind == "w" then
         items[#items + 1] = { text = L["Add friend"], func = function() C_FriendList.AddFriend(c.name) end }
+    end
+    local char = (c.kind == "bn" and c.invite) or (c.kind == "w" and c.name) or nil
+    if guildInvitable(char) then
+        items[#items + 1] = { text = L["Invite to guild"], func = function() C_GuildInfo.Invite(char) end }
+    end
+    if c.kind == "w" then
         items[#items + 1] = { text = L["Ignore"], func = function() C_FriendList.AddIgnore(c.name) end }
     end
     items[#items + 1] = { text = L["Copy name"], func = function()

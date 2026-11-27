@@ -21,7 +21,9 @@ T.it("window builds hidden with the saved size", function()
     T.no(G.SottoWindow:IsShown(), "hidden")
     T.eq(G.SottoWindow:GetWidth(), 410)
     T.eq(G.SottoWindow:GetHeight(), 306)
-    T.has(G.UISpecialFrames, "SottoWindow", "Esc closes it")
+    for _, name in ipairs(G.UISpecialFrames) do
+        T.no(name == "SottoWindow", "Esc leaves it open (Keep windows open)")
+    end
 end)
 
 T.it("a whisper out of combat opens the window on that conversation", function()
@@ -579,8 +581,9 @@ T.it("in the gamepad interface a whisper opens nothing and pops up nothing; by h
     T.eq(UI.Active(), ns.Store.Get("kaja stormhoof"), "on the newest conversation, kept for later")
 end)
 
-T.it("switching to the gamepad interface closes the window and its notifications", function()
+T.it("switching to the gamepad interface closes the window and its notifications (Keep windows open off)", function()
     local G, W, ns, UI = load()
+    ns.Set("keepOpen", false)
     whisper(W, "hey", "Tarin Ashgrove")
     T.ok(UI.IsShown())
     W.switchStyle("Gamepad")
