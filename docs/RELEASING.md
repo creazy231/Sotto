@@ -67,7 +67,7 @@ and release a new version.
 
 ## Notes
 
-- The repository is private for now. CurseForge does not need it to be public.
+- The repository is public (github.com/creazy231/Sotto). CurseForge does not need it to be.
 - Commits use the repository's own identity (`creazy231`, GitHub no-reply address);
   keep it that way (`git config user.name`, `user.email` in this repository).
 - `docs/mockup/` (the design mockup with a private game screenshot and EllesmereUI's

@@ -69,7 +69,7 @@ Cata, Wrath, Titan-Reforged) and Forever. Author for anything public: creazy231.
   and shoots all of `docs/listing/screenshots/` with headless Chrome (copy and layout: its `SHOTS`
   list; one idea per headline, one `*accent*` word, `|` breaks a line).
 - Git: repo-local identity creazy231 / 13473174+creazy231@users.noreply.github.com, remote
-  github.com/creazy231/Sotto (private). Releases: tag → `.github/workflows/release.yml`
+  github.com/creazy231/Sotto (public). Releases: tag → `.github/workflows/release.yml`
   (BigWigs packager); see `docs/RELEASING.md`.
 - After a code change: add a `CHANGELOG.md` entry under the next version and tag that version
   to release (`## Version: @project-version@` is filled in by the packager).

@@ -90,4 +90,4 @@ Unread while faded, Invite to guild (2026-11-22, evening): the user came back, a
   - M-5: the name field did not count as presence. Fixed.
   - Outside scope: Alt+Z minimised every separate window, because WoW fires OnHide on UIParent's children. Fixed: an OnHide while the window is still shown means the interface is hiding.
 - Tests: test_faded.lua (26), test_guild.lua (12), test_keepopen.lua (+1). Mutation batteries (32 + 2 + 26 + 2 + 1) were each caught after the added tests. One redundant line was removed (SetNew's early return). 384 passed, syntax ok, media ok.
-- Status: not seen in game; not committed (the user wants to test first).
+- Status: released as 1.5.0 on the user's go (2026-11-27: "Commit and Push everything please and make it so that curseforge will have the new update soon"). No in-game report came with it.
